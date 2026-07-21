@@ -2,6 +2,8 @@
 
 A custom-made band page for **Side Project**, built as an interactive 3D medieval tavern in Three.js. Four musicians sit around a candlelit table — click glowing objects to change songs (the site plays the band's actual music), click the room to rain beer bottles.
 
+See live demo at [sideproj.ca](https://sideproj.ca/)
+
 Listen to Side Project:
 - [Bandcamp](https://sideproject420.bandcamp.com/)
 - [Spotify](https://open.spotify.com/artist/1OgS3t9zHbTivlQocswe9C)
