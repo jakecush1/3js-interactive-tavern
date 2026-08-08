@@ -1,7 +1,8 @@
 import { bandMembers } from "../../data/bandMembers";
 import { songs } from "../../data/songs";
+import { upcomingShows } from "../../data/shows";
 import { useGameStore } from "../../lib/useGameStore";
-import { ChevronDown } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock, MapPin } from "lucide-react";
 import Portrait from "./Portrait";
 
 // FOOTER OVERLAY
@@ -9,8 +10,32 @@ import Portrait from "./Portrait";
 // band info, song list, shows, contact. Reachable by scrolling or header nav.
 // Styled as a dark gallery wall hung with linen placards.
 
+// lucide dropped its brand icons, so the Instagram mark is drawn by hand.
+function InstagramGlyph({ size = 24 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="2.5" width="19" height="19" />
+      <circle cx="12" cy="12" r="4.5" />
+      <line x1="17.25" y1="6.75" x2="17.26" y2="6.75" strokeWidth={2.5} />
+    </svg>
+  );
+}
+
+const INSTAGRAM_URL = "https://www.instagram.com/not_side_project/";
+
 export default function FooterOverlay() {
   const selectSong = useGameStore((s) => s.selectSong);
+  const shows = upcomingShows();
 
   const scrollToContent = () => {
     document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
@@ -111,14 +136,69 @@ export default function FooterOverlay() {
                 ☗ On the Road
               </p>
               <h2 className="font-medieval gold-text text-3xl font-black mb-6">Shows</h2>
-              <div className="parchment p-8 text-center">
-                <p className="text-tavern-candle/85 text-lg italic">
-                  Upcoming performances coming soon.
-                </p>
-                <p className="font-mono text-tavern-stone text-xs mt-2">
-                  The minstrels are currently resting their lutes (and livers).
-                </p>
-              </div>
+
+              {shows.length === 0 ? (
+                <div className="parchment p-8 text-center">
+                  <p className="text-tavern-candle/85 text-lg italic">
+                    Upcoming performances coming soon.
+                  </p>
+                  <p className="font-mono text-tavern-stone text-xs mt-2">
+                    The minstrels are currently resting their lutes (and livers).
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {shows.map((show) => (
+                    <div key={show.id} className="parchment p-6">
+                      <h3 className="font-medieval text-tavern-candle text-xl font-bold leading-tight">
+                        {show.venue}
+                      </h3>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-wider text-tavern-stone">
+                        <span className="flex items-center gap-1.5">
+                          <CalendarDays size={13} className="text-tavern-velvet" />
+                          {show.dateLabel}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={13} className="text-tavern-velvet" />
+                          {show.timeLabel}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <MapPin size={13} className="text-tavern-velvet" />
+                          {show.location}
+                        </span>
+                      </div>
+
+                      <p className="text-tavern-stone text-sm italic leading-snug mt-3">
+                        {show.description}
+                      </p>
+
+                      <div className="mt-5 flex flex-wrap items-center gap-3">
+                        {show.infoUrl && (
+                          <a
+                            href={show.infoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-tavern font-medieval text-sm px-5 py-2 uppercase"
+                          >
+                            Faire Info
+                          </a>
+                        )}
+                        {show.updatesUrl && (
+                          <a
+                            href={show.updatesUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-tavern-cobalt underline decoration-2 underline-offset-2 hover:text-tavern-velvet"
+                          >
+                            Faire updates on Instagram
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* CONTACT */}
@@ -128,19 +208,22 @@ export default function FooterOverlay() {
               </p>
               <h2 className="font-medieval gold-text text-3xl font-black mb-6">Contact</h2>
               <div className="parchment p-8">
-                <p className="text-tavern-candle/85 mb-2">
-                  Booking inquiries:{" "}
-                  <a
-                    href="mailto:booking@example.com"
-                    className="font-mono text-sm text-tavern-cobalt underline decoration-2 underline-offset-2 hover:text-tavern-velvet"
-                  >
-                    booking@example.com
-                  </a>
+                <p className="text-tavern-candle/85 text-lg mb-6">
+                  Bookings, questions, and heckling — send us a message on Instagram.
                 </p>
-                <p className="text-tavern-stone text-sm">
-                  Replace this placeholder with real contact details in
-                  <code className="font-mono text-tavern-velvet"> FooterOverlay.tsx</code>.
-                </p>
+
+                <a
+                  href={INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-tavern inline-flex items-center gap-3 px-5 py-3"
+                  aria-label="Side Proj on Instagram (opens in a new tab)"
+                >
+                  <InstagramGlyph size={22} />
+                  <span className="font-medieval text-sm uppercase tracking-wider">
+                    @not_side_project
+                  </span>
+                </a>
               </div>
             </section>
 
