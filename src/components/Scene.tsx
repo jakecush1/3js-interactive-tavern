@@ -7,6 +7,7 @@ import SpareInstruments from "./SpareInstruments";
 import Horse from "./Horse";
 import Bar from "./Bar";
 import Barmaid from "./Barmaid";
+import Patrons from "./Patrons";
 import ClickableObject from "./ClickableObject";
 import BottleSpawner from "./BottleSpawner";
 import LightingRig from "./LightingRig";
@@ -43,6 +44,7 @@ export default function Scene() {
       <Horse />
       <Bar />
       <Barmaid />
+      <Patrons />
 
       {clickableObjects.map((obj) => (
         <ClickableObject key={obj.id} object={obj} />

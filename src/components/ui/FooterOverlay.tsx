@@ -2,7 +2,7 @@ import { bandMembers } from "../../data/bandMembers";
 import { songs } from "../../data/songs";
 import { upcomingShows } from "../../data/shows";
 import { useGameStore } from "../../lib/useGameStore";
-import { CalendarDays, ChevronDown, Clock, MapPin } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock, MapPin, Ticket } from "lucide-react";
 import Portrait from "./Portrait";
 
 // FOOTER OVERLAY
@@ -163,14 +163,40 @@ export default function FooterOverlay() {
                           <Clock size={13} className="text-tavern-velvet" />
                           {show.timeLabel}
                         </span>
-                        <span className="flex items-center gap-1.5">
-                          <MapPin size={13} className="text-tavern-velvet" />
-                          {show.location}
-                        </span>
+                        {show.admission && (
+                          <span className="flex items-center gap-1.5">
+                            <Ticket size={13} className="text-tavern-velvet" />
+                            {show.admission}
+                          </span>
+                        )}
                       </div>
 
-                      <p className="text-tavern-stone text-sm italic leading-snug mt-3">
+                      {/* Venue — the address links out to the map pin */}
+                      <div className="mt-4 flex items-start gap-1.5 text-tavern-candle/85">
+                        <MapPin size={15} className="text-tavern-velvet mt-0.5 shrink-0" />
+                        <p className="text-sm leading-snug">
+                          <span className="font-medieval font-bold">{show.place}</span>
+                          <br />
+                          {show.mapUrl ? (
+                            <a
+                              href={show.mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-tavern-cobalt underline decoration-2 underline-offset-2 hover:text-tavern-velvet"
+                            >
+                              {show.address}
+                            </a>
+                          ) : (
+                            <span className="font-mono text-xs text-tavern-stone">
+                              {show.address}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+
+                      <p className="text-tavern-stone text-sm italic leading-snug mt-4">
                         {show.description}
+                        {show.eventHours && ` ${show.eventHours}.`}
                       </p>
 
                       <div className="mt-5 flex flex-wrap items-center gap-3">

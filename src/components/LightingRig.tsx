@@ -1,13 +1,35 @@
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import { Color, type DirectionalLight, type AmbientLight } from "three";
+import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Color, PMREMGenerator, type DirectionalLight, type AmbientLight } from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useGameStore } from "../lib/useGameStore";
 import { getSong } from "../data/songs";
 import { MOOD_LIGHT } from "../lib/constants";
 
 // LIGHTING RIG
-// Base warm tavern light + a mood light that shifts color/intensity to match
-// the current song. Smoothly lerps between moods.
+// Candle-lit chiaroscuro: a low ambient so shadows actually read as
+// shadow, a warm key from the front-top for shape and cast shadows, a
+// faint cool fill from the windows, and a subtle environment map so
+// metal, glass and varnished wood have something to reflect. The point
+// lights that do most of the work live with their candles, the hearth
+// and the chandelier in TavernEnvironment. A mood light shifts colour and
+// intensity to match the current song.
+
+function EnvironmentMap() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const pmrem = new PMREMGenerator(gl);
+    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = env;
+    scene.environmentIntensity = 0.22;
+    return () => {
+      scene.environment = null;
+      env.dispose();
+      pmrem.dispose();
+    };
+  }, [gl, scene]);
+  return null;
+}
 
 export default function LightingRig() {
   const ambient = useRef<AmbientLight>(null);
@@ -26,35 +48,39 @@ export default function LightingRig() {
 
     if (key.current) {
       key.current.color.lerp(targetColor.current, 0.04);
-      key.current.intensity += (targetIntensity.current - key.current.intensity) * 0.04;
+      key.current.intensity += (targetIntensity.current * 1.1 - key.current.intensity) * 0.04;
     }
     if (ambient.current) {
-      // High-key: keep the scene pale, like a light wash on paper.
-      const ambIntensity = isPlaying ? 1.05 : 1.15;
+      const ambIntensity = isPlaying ? 0.26 : 0.3;
       ambient.current.intensity += (ambIntensity - ambient.current.intensity) * 0.04;
     }
   });
 
   return (
     <>
-      <ambientLight ref={ambient} intensity={1.35} color="#eddbb2" />
-      <hemisphereLight args={["#f3ead2", "#b8a883", 0.8]} />
+      <EnvironmentMap />
+      <ambientLight ref={ambient} intensity={0.3} color="#e9d3ac" />
+      <hemisphereLight args={["#d9c39a", "#2a1a0c", 0.35]} />
       <directionalLight
         ref={key}
-        position={[3, 6, 4]}
-        intensity={MOOD_LIGHT.idle.intensity}
+        position={[3, 6, 5]}
+        intensity={MOOD_LIGHT.idle.intensity * 1.1}
         color={MOOD_LIGHT.idle.color}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-far={20}
-        shadow-camera-left={-8}
-        shadow-camera-right={8}
-        shadow-camera-top={8}
-        shadow-camera-bottom={-8}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-far={24}
+        shadow-camera-left={-9}
+        shadow-camera-right={9}
+        shadow-camera-top={9}
+        shadow-camera-bottom={-9}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
       />
-      {/* soft fill from front */}
-      <pointLight position={[0, 3, 5]} intensity={0.25} color="#f0dcb0" distance={14} />
+      {/* soft warm fill from the front so faces toward the camera read */}
+      <pointLight position={[0, 3, 6]} intensity={0.45} color="#f0dcb0" distance={16} decay={1.6} />
+      {/* cool rim from the windows on the left */}
+      <directionalLight position={[-8, 4, 2]} intensity={0.25} color="#8ea8c8" />
     </>
   );
 }

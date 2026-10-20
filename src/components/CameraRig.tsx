@@ -31,6 +31,17 @@ export default function CameraRig() {
   // Smoothed pointer for mouse parallax (-1..1 on each axis).
   const parallax = useRef({ x: 0, y: 0 });
 
+  // Dev aid: #cam=x,y,z,tx,ty,tz parks the camera for close-up screenshots.
+  const debugCam = useRef<{ pos: Vector3; target: Vector3 } | null>(null);
+  useEffect(() => {
+    const m = /cam=([^&]+)/.exec(window.location.hash);
+    if (!m) return;
+    const v = m[1].split(",").map(Number);
+    if (v.length === 6 && v.every((x) => Number.isFinite(x))) {
+      debugCam.current = { pos: new Vector3(v[0], v[1], v[2]), target: new Vector3(v[3], v[4], v[5]) };
+    }
+  }, []);
+
   // Register reset handler on window so the UI button can call it.
   useEffect(() => {
     const reset = () => {
@@ -62,6 +73,13 @@ export default function CameraRig() {
 
   useFrame((state) => {
     if (!controls.current) return;
+
+    if (debugCam.current) {
+      camera.position.copy(debugCam.current.pos);
+      controls.current.target.copy(debugCam.current.target);
+      controls.current.update();
+      return;
+    }
 
     // lerp target
     controls.current.target.lerp(desiredTarget.current, 0.05);
@@ -95,7 +113,7 @@ export default function CameraRig() {
     <OrbitControls
       ref={controls}
       enablePan={false}
-      minDistance={5}
+      minDistance={debugCam.current ? 0.3 : 5}
       maxDistance={14}
       minPolarAngle={Math.PI * 0.18}
       maxPolarAngle={Math.PI * 0.5}

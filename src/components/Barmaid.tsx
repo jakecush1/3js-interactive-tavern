@@ -3,18 +3,76 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import type { Group } from "three";
 import { useGameStore } from "../lib/useGameStore";
+import Figure, { type FigureLook } from "./characters/Figure";
+import { Wood } from "./characters/materials";
 
 // BARMAID
-// A buxom blonde tavern wench doing endless laps of the room with a
-// pitcher of beer, dodging the band, the horse, and the keg. Primitive-built
-// and fully cartoon, like everyone else in here. She is also the walking
-// trigger for "Angelic Frick" — click her to play it.
+// The tavern waitress doing endless laps of the room with a tankard held
+// high: chestnut hair in a bun with a white ribbon, off-the-shoulder
+// chemise with puffed sleeves, laced leather corset, white apron over a
+// dark skirt, boots. She is also the walking trigger for "Angelic Frick" —
+// click her to play it.
 
 const SONG_ID = "angelic-frick";
+
+// Follows the painted reference board in /public/band/sheets/barmaid.png:
+// chestnut hair piled under a frilled white cap, off-the-shoulder chemise
+// with puffed sleeves, laced leather corset, white apron over a torn dark
+// skirt, hip pouch, heeled boots. The head is cropped from that board.
+const LOOK: FigureLook = {
+  build: "slim",
+  skin: "#efc6a4",
+  face: { url: "/band/Heads/barmaid-head.png", back: "#5a3418", height: 0.4, keyTolerance: 26 },
+  outfit: {
+    kind: "dress",
+    color: "#2b2a24",
+    accent: "#8a5a2e",
+    sleeves: "puffed",
+    sleeveColor: "#f3ede0",
+    collar: "none",
+    corset: "#6e4423",
+    apron: "#efe6d2",
+    pouch: "#4a2e16",
+    belt: false,
+  },
+  legs: { skirt: "#4a4038", boots: "#4a301c" },
+  hair: { style: "bun", color: "#5a3418" },
+  expression: "laugh",
+  nose: "small",
+  eyeColor: "#4a2e17",
+  blush: 0.45,
+};
+
+function Tankard() {
+  return (
+    <group rotation={[0.2, 0, 0]}>
+      <mesh castShadow>
+        <cylinderGeometry args={[0.07, 0.085, 0.2, 12]} />
+        <Wood base="#8a6a3e" dark="#2a1a08" planks={6} />
+      </mesh>
+      {[-0.07, 0.07].map((y) => (
+        <mesh key={y} position={[0, y, 0]}>
+          <cylinderGeometry args={[0.08, 0.08, 0.02, 12]} />
+          <meshStandardMaterial color="#8c8f96" metalness={0.7} roughness={0.4} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.11, 0]} scale={[1, 0.5, 1]}>
+        <sphereGeometry args={[0.075, 10, 8]} />
+        <meshStandardMaterial color="#f0ead8" roughness={0.9} />
+      </mesh>
+      <mesh position={[0.09, 0, 0]}>
+        <torusGeometry args={[0.05, 0.014, 6, 12, Math.PI]} />
+        <meshStandardMaterial color="#5a3a1c" roughness={0.6} />
+      </mesh>
+    </group>
+  );
+}
 
 export default function Barmaid() {
   const walker = useRef<Group>(null);
   const body = useRef<Group>(null);
+  const rightArm = useRef<Group>(null);
+  const head = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
   const selectSong = useGameStore((s) => s.selectSong);
@@ -39,9 +97,18 @@ export default function Barmaid() {
       body.current.position.y = Math.abs(Math.sin(raw * 6)) * 0.045;
       body.current.rotation.z = Math.sin(raw * 6) * 0.045;
     }
+    if (rightArm.current && !reducedMotion) {
+      // tankard held aloft, swaying with the stride
+      rightArm.current.rotation.z = -2.3 + Math.sin(raw * 3) * 0.1;
+      rightArm.current.rotation.x = -0.3 + Math.sin(raw * 6) * 0.05;
+    }
+    if (head.current && !reducedMotion) {
+      head.current.rotation.z = Math.sin(raw * 1.5) * 0.08;
+      head.current.rotation.y = Math.sin(raw * 0.9) * 0.2;
+    }
     // hover bounce, same feel as the other clickable props
     if (body.current) {
-      const target = hovered ? 1.12 : 1;
+      const target = hovered ? 1.08 : 1;
       const next = body.current.scale.x + (target - body.current.scale.x) * 0.15;
       body.current.scale.setScalar(next);
     }
@@ -65,130 +132,21 @@ export default function Barmaid() {
       }}
     >
       <group ref={body}>
-        {/* skirt to the floor (nobody has to animate legs) */}
-        <mesh position={[0, 0.45, 0]} castShadow>
-          <cylinderGeometry args={[0.14, 0.42, 0.9, 12]} />
-          <meshStandardMaterial
-            color="#7e2f28"
-            roughness={0.85}
-            emissive={glowColor}
-            emissiveIntensity={glow ? 0.3 : 0}
-          />
-        </mesh>
-        {/* apron */}
-        <mesh position={[0, 0.42, 0.27]} rotation={[0.18, 0, 0]}>
-          <planeGeometry args={[0.3, 0.6]} />
-          <meshStandardMaterial color="#e8dcc0" roughness={0.95} />
-        </mesh>
-        {/* bodice */}
-        <mesh position={[0, 1.0, 0]} castShadow>
-          <capsuleGeometry args={[0.165, 0.22, 6, 10]} />
-          <meshStandardMaterial
-            color="#3f4a33"
-            roughness={0.8}
-            emissive={glowColor}
-            emissiveIntensity={glow ? 0.3 : 0}
-          />
-        </mesh>
-        {/* chemise bustline */}
-        {[-0.08, 0.08].map((x, i) => (
-          <mesh key={i} position={[x, 1.08, 0.12]} castShadow>
-            <sphereGeometry args={[0.095, 12, 10]} />
-            <meshStandardMaterial color="#e8dcc0" roughness={0.85} />
-          </mesh>
-        ))}
-        <mesh position={[0, 1.16, 0.08]}>
-          <boxGeometry args={[0.27, 0.08, 0.12]} />
-          <meshStandardMaterial color="#e8dcc0" roughness={0.85} />
-        </mesh>
-
-        {/* right arm carrying the pitcher out front */}
-        <group position={[0.19, 1.12, 0.04]} rotation={[-1.15, 0, -0.15]}>
-          <mesh position={[0, -0.16, 0]} castShadow>
-            <capsuleGeometry args={[0.05, 0.26, 4, 8]} />
-            <meshStandardMaterial color="#e8dcc0" roughness={0.85} />
-          </mesh>
-          {/* PITCHER OF BEER */}
-          <group position={[0, -0.36, 0.02]} rotation={[1.15, 0, 0]}>
-            <mesh castShadow>
-              <cylinderGeometry args={[0.075, 0.095, 0.2, 10]} />
-              <meshStandardMaterial color="#8a6a3e" roughness={0.6} />
-            </mesh>
-            {/* foam head */}
-            <mesh position={[0, 0.11, 0]} scale={[1, 0.55, 1]}>
-              <sphereGeometry args={[0.075, 10, 8]} />
-              <meshStandardMaterial color="#f0ead8" roughness={0.9} />
-            </mesh>
-            {/* handle */}
-            <mesh position={[0.09, 0, 0]} rotation={[0, 0, 0]}>
-              <torusGeometry args={[0.055, 0.014, 6, 12, Math.PI]} />
-              <meshStandardMaterial color="#6e4a26" roughness={0.6} />
-            </mesh>
-          </group>
-        </group>
-        {/* left arm on hip */}
-        <mesh position={[-0.21, 1.02, 0.02]} rotation={[0, 0, 1.1]} castShadow>
-          <capsuleGeometry args={[0.05, 0.22, 4, 8]} />
-          <meshStandardMaterial color="#3f4a33" roughness={0.8} />
-        </mesh>
-
-        {/* head */}
-        <group position={[0, 1.42, 0]}>
-          <mesh castShadow>
-            <sphereGeometry args={[0.15, 16, 16]} />
-            <meshStandardMaterial color="#e8b48c" roughness={0.6} />
-          </mesh>
-          {/* eyes */}
-          {[-0.055, 0.055].map((x, i) => (
-            <group key={i} position={[x, 0.03, 0.125]}>
-              <mesh>
-                <sphereGeometry args={[0.03, 10, 10]} />
-                <meshStandardMaterial color="#f5f2ea" roughness={0.3} />
-              </mesh>
-              <mesh position={[0, 0, 0.022]}>
-                <sphereGeometry args={[0.014, 8, 8]} />
-                <meshStandardMaterial color="#2a1c10" roughness={0.3} />
-              </mesh>
-            </group>
-          ))}
-          {/* rosy cheeks */}
-          {[-0.08, 0.08].map((x, i) => (
-            <mesh key={i} position={[x, -0.02, 0.115]}>
-              <sphereGeometry args={[0.032, 8, 8]} />
-              <meshStandardMaterial color="#d98a72" roughness={0.7} />
-            </mesh>
-          ))}
-          {/* blonde hair: crown, back curtain, twin braids */}
-          <mesh position={[0, 0.05, -0.03]}>
-            <sphereGeometry args={[0.155, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-            <meshStandardMaterial color="#d9b35c" roughness={0.9} />
-          </mesh>
-          <mesh position={[0, -0.14, -0.11]} castShadow>
-            <boxGeometry args={[0.22, 0.3, 0.07]} />
-            <meshStandardMaterial color="#d9b35c" roughness={0.9} />
-          </mesh>
-          {[-1, 1].map((side) => (
-            <group key={side}>
-              <mesh position={[side * 0.14, -0.2, 0.04]} rotation={[0, 0, side * 0.12]} castShadow>
-                <cylinderGeometry args={[0.032, 0.026, 0.38, 8]} />
-                <meshStandardMaterial color="#d9b35c" roughness={0.9} />
-              </mesh>
-              <mesh position={[side * 0.165, -0.41, 0.06]}>
-                <sphereGeometry args={[0.035, 8, 8]} />
-                <meshStandardMaterial color="#c9a04a" roughness={0.9} />
-              </mesh>
-            </group>
-          ))}
-        </group>
-
+        <Figure
+          look={LOOK}
+          pose="standing"
+          highlight={glow}
+          highlightColor={glowColor}
+          refs={{ rightArm, head }}
+          armPose={{ left: [0.15, 0, 0.95], leftElbow: -0.9, right: [-0.3, 0, -2.3], rightElbow: -0.6 }}
+          heldRight={<Tankard />}
+        />
         {/* glow halo, matching the other song triggers */}
-        {glow && (
-          <pointLight position={[0, 1.1, 0.3]} color={glowColor} intensity={1.2} distance={1.6} />
-        )}
+        {glow && <pointLight position={[0, 1.3, 0.3]} color={glowColor} intensity={1.2} distance={1.6} />}
       </group>
 
       {hovered && (
-        <Html position={[0, 1.85, 0]} center distanceFactor={9}>
+        <Html position={[0, 2.1, 0]} center distanceFactor={9}>
           <div className="pointer-events-none whitespace-nowrap border-2 border-tavern-gold bg-tavern-shadow/95 px-2.5 py-1 text-[11px] text-tavern-linen font-mono uppercase tracking-wider shadow-brutal-cobalt">
             Play Angelic Frick
           </div>
