@@ -70,12 +70,12 @@ export default function FallingBottle({ id, position, vx, vz, rotSpeed, onDone }
   return (
     <group ref={ref} position={position} scale={0.5}>
       {/* body */}
-      <mesh castShadow>
+      <mesh>
         <cylinderGeometry args={[0.12, 0.12, 0.5, 12]} />
         <meshStandardMaterial color={glassColor} roughness={0.2} metalness={0.1} />
       </mesh>
       {/* shoulder */}
-      <mesh position={[0, 0.32, 0]} castShadow>
+      <mesh position={[0, 0.32, 0]}>
         <coneGeometry args={[0.12, 0.18, 12]} />
         <meshStandardMaterial color={glassColor} roughness={0.2} metalness={0.1} />
       </mesh>

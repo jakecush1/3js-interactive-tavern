@@ -42,7 +42,7 @@ export default function Horse() {
           <Wood base="#7a4e26" dark="#2a1708" planks={1} />
         </mesh>
         {/* saddle blanket */}
-        <mesh position={[-0.05, 1.12, 0]} rotation={[0, 0, 0]} castShadow>
+        <mesh position={[-0.05, 1.12, 0]} rotation={[0, 0, 0]}>
           <boxGeometry args={[0.5, 0.12, 0.46]} />
           <Cloth color="#6b1f2a" />
         </mesh>
@@ -51,18 +51,18 @@ export default function Horse() {
           <Cloth color="#c9a24b" />
         </mesh>
         {/* rump + chest rounding */}
-        <mesh position={[-0.45, 0.97, 0]} castShadow>
+        <mesh position={[-0.45, 0.97, 0]}>
           <sphereGeometry args={[0.21, 10, 10]} />
           <Wood base="#74481f" dark="#2a1708" planks={1} />
         </mesh>
-        <mesh position={[0.45, 0.97, 0]} castShadow>
+        <mesh position={[0.45, 0.97, 0]}>
           <sphereGeometry args={[0.19, 10, 10]} />
           <Wood base="#7a4e26" dark="#2a1708" planks={1} />
         </mesh>
 
         {/* neck + head (pivot so it can nod) */}
         <group ref={head} position={[0.45, 1.15, 0]}>
-          <mesh position={[0.12, 0.22, 0]} rotation={[0, 0, -0.55]} castShadow>
+          <mesh position={[0.12, 0.22, 0]} rotation={[0, 0, -0.55]}>
             <boxGeometry args={[0.18, 0.5, 0.22]} />
             <Wood base="#7a4e26" dark="#2a1708" planks={1} />
           </mesh>
@@ -72,7 +72,7 @@ export default function Horse() {
             <Hair color="#2a1c10" />
           </mesh>
           {/* head + muzzle */}
-          <mesh position={[0.36, 0.42, 0]} rotation={[0, 0, -0.25]} castShadow>
+          <mesh position={[0.36, 0.42, 0]} rotation={[0, 0, -0.25]}>
             <boxGeometry args={[0.34, 0.17, 0.17]} />
             <Wood base="#7a4e26" dark="#2a1708" planks={1} />
           </mesh>
@@ -103,7 +103,7 @@ export default function Horse() {
 
         {/* tail (pivot so it can swish) */}
         <group ref={tail} position={[-0.6, 1.05, 0]}>
-          <mesh position={[-0.06, -0.22, 0]} rotation={[0, 0, 0.25]} castShadow>
+          <mesh position={[-0.06, -0.22, 0]} rotation={[0, 0, 0.25]}>
             <coneGeometry args={[0.07, 0.5, 8]} />
             <Hair color="#2a1c10" />
           </mesh>
@@ -120,7 +120,7 @@ export default function Horse() {
         ] as const
       ).map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
-          <mesh position={[0, 0.42, 0]} castShadow>
+          <mesh position={[0, 0.42, 0]}>
             <cylinderGeometry args={[0.045, 0.055, 0.72, 8]} />
             <Wood base="#5c3d1e" dark="#1a0e04" planks={1} />
           </mesh>

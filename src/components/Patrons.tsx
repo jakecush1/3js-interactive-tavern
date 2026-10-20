@@ -93,7 +93,7 @@ export default function Patrons() {
         <cylinderGeometry args={[0.62, 0.62, 0.06, 20]} />
         <Wood base="#6a4626" dark="#231206" planks={5} />
       </mesh>
-      <mesh position={[0, 0.38, 0]} castShadow>
+      <mesh position={[0, 0.38, 0]}>
         <cylinderGeometry args={[0.08, 0.1, 0.68, 10]} />
         <Wood base="#4a3018" dark="#1a0e04" planks={1} />
       </mesh>
@@ -152,11 +152,11 @@ export default function Patrons() {
 
       {/* the traveller's pack and staff by the table */}
       <group position={[0.95, 0, 0.45]}>
-        <mesh position={[0, 0.2, 0]} rotation={[0, 0.4, 0]} castShadow>
+        <mesh position={[0, 0.2, 0]} rotation={[0, 0.4, 0]}>
           <boxGeometry args={[0.3, 0.4, 0.2]} />
           <Cloth color="#4a3a2a" coarse />
         </mesh>
-        <mesh position={[0.25, 0.7, -0.1]} rotation={[0.1, 0, 0.18]} castShadow>
+        <mesh position={[0.25, 0.7, -0.1]} rotation={[0.1, 0, 0.18]}>
           <cylinderGeometry args={[0.018, 0.022, 1.5, 8]} />
           <Wood base="#5a3a1c" dark="#1f1206" planks={1} />
         </mesh>

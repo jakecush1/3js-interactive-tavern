@@ -47,7 +47,7 @@ function WallPainting({
     <group position={position} rotation={rotation}>
       {framed && (
         <>
-          <mesh castShadow>
+          <mesh>
             <boxGeometry args={[width + 0.24, height + 0.24, 0.08]} />
             <Wood base="#2a1a0c" dark="#0a0502" planks={1} roughness={0.5} />
           </mesh>
@@ -57,7 +57,7 @@ function WallPainting({
           </mesh>
         </>
       )}
-      <mesh position={[0, 0, 0.056]} castShadow>
+      <mesh position={[0, 0, 0.056]}>
         <planeGeometry args={[width, height]} />
         <meshStandardMaterial map={tex} roughness={0.9} />
       </mesh>
@@ -110,7 +110,7 @@ function Candle({ position, light = true, holder = true }: { position: [number, 
           <Metal color="#b8923a" roughness={0.4} metalness={0.8} />
         </mesh>
       )}
-      <mesh castShadow>
+      <mesh>
         <cylinderGeometry args={[0.035, 0.045, 0.22, 10]} />
         <meshStandardMaterial color="#e8dcc0" roughness={0.6} />
       </mesh>
@@ -174,15 +174,15 @@ function HearthFire() {
   return (
     <group>
       {/* logs on a bed of embers */}
-      <mesh position={[0, 0.14, 0.4]} rotation={[0, 0.5, 0.06]} castShadow>
+      <mesh position={[0, 0.14, 0.4]} rotation={[0, 0.5, 0.06]}>
         <cylinderGeometry args={[0.07, 0.08, 0.85, 8]} />
         <Wood base="#2e1a0c" dark="#0a0402" planks={1} />
       </mesh>
-      <mesh position={[0, 0.16, 0.42]} rotation={[0, -0.6, -0.05]} castShadow>
+      <mesh position={[0, 0.16, 0.42]} rotation={[0, -0.6, -0.05]}>
         <cylinderGeometry args={[0.06, 0.07, 0.8, 8]} />
         <Wood base="#3a220e" dark="#0a0402" planks={1} />
       </mesh>
-      <mesh position={[0.05, 0.26, 0.4]} rotation={[0, 0.1, 0.4]} castShadow>
+      <mesh position={[0.05, 0.26, 0.4]} rotation={[0, 0.1, 0.4]}>
         <cylinderGeometry args={[0.05, 0.06, 0.6, 8]} />
         <meshStandardMaterial color="#1a0c04" emissive="#c93d10" emissiveIntensity={0.5} roughness={1} />
       </mesh>
@@ -366,7 +366,7 @@ function Sconce({ position, rotation }: { position: [number, number, number]; ro
         <cylinderGeometry args={[0.06, 0.045, 0.05, 10]} />
         <Metal color="#2a2a2a" roughness={0.7} />
       </mesh>
-      <Candle position={[0, 0.16, 0.2]} holder={false} />
+      <Candle position={[0, 0.16, 0.2]} holder={false} light={false} />
       {/* soot stain above */}
       <mesh position={[0, 0.55, 0.005]}>
         <planeGeometry args={[0.35, 0.7]} />
@@ -436,7 +436,7 @@ function Banner({ position, field, emblem }: { position: [number, number, number
           <Metal color="#b8923a" roughness={0.4} metalness={0.8} />
         </mesh>
       ))}
-      <mesh position={[0, 0, 0.05]} castShadow>
+      <mesh position={[0, 0, 0.05]}>
         <planeGeometry args={[1.05, 2.4, 1, 6]} />
         <meshStandardMaterial map={tex} roughness={0.95} side={2} />
       </mesh>
@@ -500,7 +500,7 @@ function Antlers({ position }: { position: [number, number, number] }) {
 function Loaf({ position, rotation = 0 }: { position: [number, number, number]; rotation?: number }) {
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <mesh scale={[1.6, 0.8, 1]} castShadow>
+      <mesh scale={[1.6, 0.8, 1]}>
         <sphereGeometry args={[0.075, 12, 10]} />
         <meshStandardMaterial color="#b98a52" roughness={0.95} />
       </mesh>
@@ -643,8 +643,12 @@ export default function TavernEnvironment() {
       <Sconce position={[1.0, 2.2, -3.6]} rotation={0} />
       <Sconce position={[-1.0, 2.2, -3.6]} rotation={0} />
 
+      {/* one soft light per wall stands in for the five sconce candles */}
+      <pointLight position={[-5.8, 2.6, 0.8]} color="#ffb347" intensity={0.9} distance={6} decay={2} />
+      <pointLight position={[0, 2.6, -3.0]} color="#ffb347" intensity={0.9} distance={6} decay={2} />
+
       {/* WINDOWS — leaded glass, night outside */}
-      <Window position={[-6.62, 2.75, -2.4]} rotation={Math.PI / 2} light />
+      <Window position={[-6.62, 2.75, -2.4]} rotation={Math.PI / 2} />
       <Window position={[-6.62, 2.75, 3.3]} rotation={Math.PI / 2} />
       <Window position={[6.62, 3.05, 3.6]} rotation={-Math.PI / 2} />
 
@@ -677,7 +681,7 @@ export default function TavernEnvironment() {
           <Bottle key={i} position={[x, 2.13, 0.25]} color={["#7a4a1a", "#3f5a2e", "#5a2e2e", "#7a4a1a", "#44507a"][i]} height={0.18 + (i % 2) * 0.05} />
         ))}
         <Jug position={[-0.15, 2.13, 0.2]} color="#8a6a4a" scale={0.7} />
-        <Candle position={[0.05, 2.25, 0.35]} />
+        <Candle position={[0.05, 2.25, 0.35]} light={false} />
         {/* antlers over the mantel */}
         <Antlers position={[0, 2.85, 0.02]} />
         {/* tapered chimney breast rising to the beams */}
@@ -720,7 +724,7 @@ export default function TavernEnvironment() {
           <sphereGeometry args={[0.3, 10, 8]} />
           <meshBasicMaterial color="#c93d10" />
         </mesh>
-        <pointLight ref={fireLight} position={[0, 0.8, 0.9]} color="#ff8a2c" intensity={3.2} distance={11} decay={2} castShadow shadow-mapSize-width={512} shadow-mapSize-height={512} />
+        <pointLight ref={fireLight} position={[0, 0.8, 0.9]} color="#ff8a2c" intensity={3.2} distance={11} decay={2} />
         {/* fire irons leaning on the hearth */}
         {[0, 1].map((i) => (
           <mesh key={i} position={[1.35 + i * 0.1, 0.5, 0.35]} rotation={[0.1, 0, 0.12 + i * 0.08]}>
@@ -738,7 +742,7 @@ export default function TavernEnvironment() {
             [-0.09, 0.23, 0.0],
             [0, 0.38, 0.01],
           ].map(([x, y, z], i) => (
-            <mesh key={i} position={[x, y, z]} rotation={[Math.PI / 2, 0, (i % 2) * 0.1]} castShadow>
+            <mesh key={i} position={[x, y, z]} rotation={[Math.PI / 2, 0, (i % 2) * 0.1]}>
               <cylinderGeometry args={[0.075, 0.08, 0.6, 8]} />
               <Wood base={i % 2 ? "#6a4a2a" : "#5a3a1e"} dark="#1a0e04" planks={1} />
             </mesh>
@@ -761,7 +765,7 @@ export default function TavernEnvironment() {
         </mesh>
         {[-1, 1].map((s) => (
           <group key={s}>
-            <mesh position={[s * 0.5, 0.19, 0]} rotation={[0, 0, s * 0.2]} castShadow>
+            <mesh position={[s * 0.5, 0.19, 0]} rotation={[0, 0, s * 0.2]}>
               <boxGeometry args={[0.1, 0.38, 0.5]} />
               <Wood base="#4a3018" dark="#1a0e04" planks={1} />
             </mesh>
@@ -849,11 +853,11 @@ export default function TavernEnvironment() {
       <Banner position={[1.8, 3.6, -3.72]} field="#2f4a3c" emblem="cross" />
 
       {/* Mugs on the table */}
-      <mesh position={[0.3, 0.54, 1.5]} castShadow>
+      <mesh position={[0.3, 0.54, 1.5]}>
         <cylinderGeometry args={[0.065, 0.075, 0.16, 12]} />
         <Metal color="#caa84d" roughness={0.45} metalness={0.6} />
       </mesh>
-      <mesh position={[-0.35, 0.54, 1.9]} castShadow>
+      <mesh position={[-0.35, 0.54, 1.9]}>
         <cylinderGeometry args={[0.065, 0.075, 0.16, 12]} />
         <Metal color="#9a8540" roughness={0.45} metalness={0.6} />
       </mesh>

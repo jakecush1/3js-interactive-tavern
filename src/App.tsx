@@ -54,8 +54,9 @@ export default function App() {
       <div
         className="fixed inset-0 z-10 pointer-events-none"
         style={{
-          mixBlendMode: "overlay",
-          opacity: 0.45,
+          // plain alpha blending: mix-blend modes over a live WebGL canvas
+          // force an expensive full-screen composite every frame
+          opacity: 0.16,
           backgroundImage:
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E\")",
         }}
@@ -64,8 +65,7 @@ export default function App() {
       <div
         className="fixed inset-0 z-10 pointer-events-none"
         style={{
-          mixBlendMode: "soft-light",
-          opacity: 0.35,
+          opacity: 0.12,
           backgroundImage:
             "repeating-linear-gradient(45deg, rgba(233,220,190,0.5) 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, rgba(18,13,6,0.6) 0 1px, transparent 1px 9px)",
         }}

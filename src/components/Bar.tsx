@@ -26,7 +26,7 @@ export function Tankard({
 }) {
   return (
     <group position={position} rotation={tipped ? [0, rotation, Math.PI / 2] : [0, rotation, 0]}>
-      <mesh castShadow>
+      <mesh>
         <cylinderGeometry args={[0.055, 0.065, 0.15, 12]} />
         {glass ? (
           <meshStandardMaterial color="#d8d2c0" transparent opacity={0.4} roughness={0.2} />
@@ -62,7 +62,7 @@ export function Bottle({
 }) {
   return (
     <group position={position} rotation={rotation}>
-      <mesh position={[0, height / 2, 0]} castShadow>
+      <mesh position={[0, height / 2, 0]}>
         <cylinderGeometry args={[0.05, 0.055, height, 10]} />
         <meshStandardMaterial color={color} roughness={0.25} metalness={0.05} />
       </mesh>
@@ -90,7 +90,7 @@ export function Bottle({
 export function Jug({ position, color = "#8a6a4a", scale = 1 }: { position: [number, number, number]; color?: string; scale?: number }) {
   return (
     <group position={position} scale={scale}>
-      <mesh position={[0, 0.11, 0]} castShadow>
+      <mesh position={[0, 0.11, 0]}>
         <sphereGeometry args={[0.12, 14, 12]} />
         <meshStandardMaterial color={color} roughness={0.5} />
       </mesh>
@@ -281,7 +281,7 @@ function SlumpedDrunk({ position }: { position: [number, number, number] }) {
 function Shelf({ y, length = 3.2 }: { y: number; length?: number }) {
   return (
     <group position={[6.68, y, 0]}>
-      <mesh castShadow>
+      <mesh>
         <boxGeometry args={[0.26, 0.05, length]} />
         <Wood base="#5a3b20" dark="#1f1206" planks={1} />
       </mesh>
@@ -350,7 +350,7 @@ export default function Bar() {
       ))}
       {/* keg on its side behind the bar */}
       <group position={[6.45, 0.42, -1.55]} rotation={[0, 0, Math.PI / 2]}>
-        <mesh castShadow>
+        <mesh>
           <cylinderGeometry args={[0.36, 0.32, 0.7, 16]} />
           <Wood base="#5a3a1d" dark="#1f1206" planks={8} />
         </mesh>

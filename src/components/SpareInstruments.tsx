@@ -18,7 +18,7 @@ function BabeGear() {
       {/* BANJO — leaning back against the wall side, head up */}
       <group rotation={[-0.18, 0, -0.42]} position={[0, 0.2, 0]}>
         {/* rim */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.17, 0.17, 0.06, 20]} />
           <meshStandardMaterial color="#6b4423" roughness={0.6} />
         </mesh>
@@ -33,7 +33,7 @@ function BabeGear() {
           <meshStandardMaterial color="#e6d7b8" roughness={0.8} />
         </mesh>
         {/* neck */}
-        <mesh position={[0, 0.42, 0.01]} castShadow>
+        <mesh position={[0, 0.42, 0.01]}>
           <boxGeometry args={[0.045, 0.52, 0.04]} />
           <meshStandardMaterial color="#5a3416" roughness={0.6} />
         </mesh>
@@ -60,13 +60,13 @@ function BabeAccordion() {
     <group position={[-1.2, 0, -0.65]} rotation={[0, 0.4, 0]}>
       <group position={[0, 0.14, 0]} rotation={[0, 0, 0.05]}>
         {/* left end (bass side) */}
-        <mesh position={[-0.17, 0, 0]} castShadow>
+        <mesh position={[-0.17, 0, 0]}>
           <boxGeometry args={[0.09, 0.27, 0.18]} />
           <meshStandardMaterial color="#7e1f1a" roughness={0.35} />
         </mesh>
         {/* bellows pleats */}
         {[-0.1, -0.06, -0.02, 0.02, 0.06, 0.1].map((x, i) => (
-          <mesh key={i} position={[x, 0, 0]} castShadow>
+          <mesh key={i} position={[x, 0, 0]}>
             <boxGeometry args={[0.038, 0.23, 0.15]} />
             <meshStandardMaterial
               color={i % 2 === 0 ? "#e8dcc0" : "#2a1c14"}
@@ -75,7 +75,7 @@ function BabeAccordion() {
           </mesh>
         ))}
         {/* right end (treble side) */}
-        <mesh position={[0.17, 0, 0]} castShadow>
+        <mesh position={[0.17, 0, 0]}>
           <boxGeometry args={[0.09, 0.27, 0.18]} />
           <meshStandardMaterial color="#7e1f1a" roughness={0.35} />
         </mesh>

@@ -67,8 +67,8 @@ export default function LightingRig() {
         intensity={MOOD_LIGHT.idle.intensity * 1.1}
         color={MOOD_LIGHT.idle.color}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-camera-far={24}
         shadow-camera-left={-9}
         shadow-camera-right={9}

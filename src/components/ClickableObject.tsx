@@ -93,7 +93,7 @@ function renderKind(
     case "scroll":
       return (
         <group rotation={[0, 0.3, 0]}>
-          <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.06, 0.06, 0.34, 12]} />
             <meshStandardMaterial
               color="#e8d8a8"
@@ -113,7 +113,7 @@ function renderKind(
       return (
         <group>
           {/* cup */}
-          <mesh position={[0, 0.08, 0]} castShadow>
+          <mesh position={[0, 0.08, 0]}>
             <cylinderGeometry args={[0.08, 0.05, 0.16, 12]} />
             <meshStandardMaterial
               color="#c9a24b"
@@ -138,7 +138,7 @@ function renderKind(
     case "barrel":
       return (
         <group scale={0.9}>
-          <mesh castShadow>
+          <mesh>
             <cylinderGeometry args={[0.45, 0.4, 1.0, 16]} />
             <meshStandardMaterial
               color="#5a3a1d"
@@ -169,16 +169,16 @@ function renderKind(
       return (
         <group>
           {/* table leg + top */}
-          <mesh position={[0, 0.25, 0]} castShadow>
+          <mesh position={[0, 0.25, 0]}>
             <cylinderGeometry args={[0.09, 0.13, 0.5, 8]} />
             <meshStandardMaterial color="#3d2817" roughness={0.8} />
           </mesh>
-          <mesh position={[0, 0.53, 0]} castShadow receiveShadow>
+          <mesh position={[0, 0.53, 0]} receiveShadow>
             <cylinderGeometry args={[0.52, 0.52, 0.07, 16]} />
             <meshStandardMaterial color="#5c3d22" roughness={0.7} />
           </mesh>
           {/* keg body — dark aged oak, bulged staves */}
-          <mesh position={[0, 0.92, 0]} castShadow>
+          <mesh position={[0, 0.92, 0]}>
             <cylinderGeometry args={[0.26, 0.3, 0.68, 14]} />
             <meshStandardMaterial
               color="#4a2f16"
@@ -239,7 +239,7 @@ function renderKind(
       return (
         <group>
           {/* pouch body */}
-          <mesh position={[0, 0.11, 0]} scale={[1, 0.85, 1]} castShadow>
+          <mesh position={[0, 0.11, 0]} scale={[1, 0.85, 1]}>
             <sphereGeometry args={[0.14, 12, 10]} />
             <meshStandardMaterial
               color="#6b4a2a"
@@ -286,7 +286,7 @@ function renderKind(
       return (
         <group rotation={[0, 0.5, 0]}>
           {/* board */}
-          <mesh position={[0, 0.025, 0]} castShadow receiveShadow>
+          <mesh position={[0, 0.025, 0]} receiveShadow>
             <cylinderGeometry args={[0.34, 0.34, 0.04, 14]} />
             <meshStandardMaterial color="#4a3016" roughness={0.8} />
           </mesh>
@@ -300,7 +300,7 @@ function renderKind(
             ] as const
           ).map(([x, y, z, s, rot], i) => (
             <group key={i} position={[x, y, z]} rotation={[0, rot, 0]} scale={s}>
-              <mesh scale={[1.35, 0.75, 1]} castShadow>
+              <mesh scale={[1.35, 0.75, 1]}>
                 <sphereGeometry args={[0.11, 14, 12]} />
                 <meshStandardMaterial
                   color={i % 2 === 0 ? "#a86f2e" : "#96601f"}
@@ -322,7 +322,7 @@ function renderKind(
       );
     case "candle":
       return (
-        <mesh castShadow>
+        <mesh>
           <cylinderGeometry args={[0.05, 0.06, 0.24, 8]} />
           <meshStandardMaterial
             color="#e8dcc0"

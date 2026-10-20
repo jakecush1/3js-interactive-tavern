@@ -240,12 +240,12 @@ function PhotoHead({ url, back, height = 0.44, headR, tolerance, longHair }: { u
       </mesh>
       {longHair && (
         <group position={[0, -height * 0.1, -0.02]}>
-          <mesh position={[0, -0.16, -0.1]} rotation={[0.12, 0, 0]} castShadow>
+          <mesh position={[0, -0.16, -0.1]} rotation={[0.12, 0, 0]}>
             <boxGeometry args={[Math.min(width, 0.3), 0.42, 0.08]} />
             <Hair color={longHair} />
           </mesh>
           {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * Math.min(width, 0.3) * 0.55, -0.14, -0.02]} rotation={[0, 0, side * -0.08]} castShadow>
+            <mesh key={side} position={[side * Math.min(width, 0.3) * 0.55, -0.14, -0.02]} rotation={[0, 0, side * -0.08]}>
               <boxGeometry args={[0.07, 0.36, 0.1]} />
               <Hair color={longHair} />
             </mesh>
@@ -323,14 +323,14 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
         <sphereGeometry args={[0.16, 24, 20]} />
         <Skin color={skin} />
       </mesh>
-      <mesh position={[0, -0.085, 0.035]} scale={[1.05, 0.72, 0.95]} castShadow>
+      <mesh position={[0, -0.085, 0.035]} scale={[1.05, 0.72, 0.95]}>
         <sphereGeometry args={[0.115, 20, 14]} />
         <Skin color={skin} />
       </mesh>
       {/* ears */}
       {[-1, 1].map((side) =>
         ears === "pointed" ? (
-          <mesh key={side} position={[side * 0.17, 0.02, -0.02]} rotation={[0, 0, side * -1.25]} castShadow>
+          <mesh key={side} position={[side * 0.17, 0.02, -0.02]} rotation={[0, 0, side * -1.25]}>
             <coneGeometry args={[0.04, 0.17, 6]} />
             <Skin color={skin} />
           </mesh>
@@ -343,7 +343,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       )}
       {/* nose */}
       {nose === "long" ? (
-        <mesh position={[0, -0.03, 0.2]} rotation={[Math.PI / 2 + 0.25, 0, 0]} castShadow>
+        <mesh position={[0, -0.03, 0.2]} rotation={[Math.PI / 2 + 0.25, 0, 0]}>
           <coneGeometry args={[0.03, 0.17, 8]} />
           <Skin color={skin} />
         </mesh>
@@ -441,7 +441,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       )}
       {(facial === "beard" || facial === "bigbeard") && (
         <group>
-          <mesh position={[0, -0.12, 0.03]} scale={[1.02, 1.0, 0.9]} castShadow>
+          <mesh position={[0, -0.12, 0.03]} scale={[1.02, 1.0, 0.9]}>
             <sphereGeometry args={[0.135, 16, 12, 0, Math.PI * 2, Math.PI * 0.35, Math.PI * 0.65]} />
             <Hair color={hairColor} />
           </mesh>
@@ -453,11 +453,11 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
           ))}
           {facial === "bigbeard" && (
             <>
-              <mesh position={[0, -0.27, 0.07]} scale={[0.95, 1.2, 0.75]} castShadow>
+              <mesh position={[0, -0.27, 0.07]} scale={[0.95, 1.2, 0.75]}>
                 <sphereGeometry args={[0.13, 14, 12]} />
                 <Hair color={hairColor} />
               </mesh>
-              <mesh position={[0, -0.42, 0.12]} scale={[0.7, 1.1, 0.6]} castShadow>
+              <mesh position={[0, -0.42, 0.12]} scale={[0.7, 1.1, 0.6]}>
                 <sphereGeometry args={[0.11, 12, 10]} />
                 <Hair color={hairColor} />
               </mesh>
@@ -467,7 +467,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       )}
       {/* hair */}
       {style !== "bald" && hat !== "coif" && (
-        <mesh position={[0, 0.02, -0.015]} scale={[1, 1.05, 1.02]} castShadow>
+        <mesh position={[0, 0.02, -0.015]} scale={[1, 1.05, 1.02]}>
           <sphereGeometry args={[0.165, 20, 14, 0, Math.PI * 2, 0, Math.PI * (style === "long" || style === "bun" ? 0.5 : 0.52)]} />
           <Hair color={hairColor} />
         </mesh>
@@ -481,12 +481,12 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
         ))}
       {style === "long" && (
         <group>
-          <mesh position={[0, -0.15, -0.1]} rotation={[0.12, 0, 0]} castShadow>
+          <mesh position={[0, -0.15, -0.1]} rotation={[0.12, 0, 0]}>
             <boxGeometry args={[0.27, 0.46, 0.08]} />
             <Hair color={hairColor} />
           </mesh>
           {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.16, -0.16, 0.02]} rotation={[0, 0, side * -0.08]} castShadow>
+            <mesh key={side} position={[side * 0.16, -0.16, 0.02]} rotation={[0, 0, side * -0.08]}>
               <boxGeometry args={[0.07, 0.42, 0.12]} />
               <Hair color={hairColor} />
             </mesh>
@@ -495,7 +495,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       )}
       {style === "bun" && (
         <group>
-          <mesh position={[0, 0.12, -0.1]} castShadow>
+          <mesh position={[0, 0.12, -0.1]}>
             <sphereGeometry args={[0.075, 12, 10]} />
             <Hair color={hairColor} />
           </mesh>
@@ -511,7 +511,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       {/* hats */}
       {hat === "beret" && (
         <group position={[0, 0.13, 0]}>
-          <mesh scale={[1, 0.42, 1]} rotation={[0, 0, 0.12]} castShadow>
+          <mesh scale={[1, 0.42, 1]} rotation={[0, 0, 0.12]}>
             <sphereGeometry args={[0.2, 16, 12]} />
             <Cloth color={hatColor} />
           </mesh>
@@ -529,7 +529,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       )}
       {hat === "beanie" && (
         <group position={[0, 0.04, 0]}>
-          <mesh scale={[1, 1.25, 1]} castShadow>
+          <mesh scale={[1, 1.25, 1]}>
             <sphereGeometry args={[0.172, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
             <Cloth color={hatColor} coarse />
           </mesh>
@@ -541,7 +541,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
       )}
       {hat === "cap" && (
         <group position={[0, 0.06, 0]}>
-          <mesh castShadow>
+          <mesh>
             <sphereGeometry args={[0.17, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
             <Cloth color={hatColor} />
           </mesh>
@@ -552,7 +552,7 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
         </group>
       )}
       {hat === "coif" && (
-        <mesh position={[0, 0.01, -0.01]} castShadow>
+        <mesh position={[0, 0.01, -0.01]}>
           <sphereGeometry args={[0.168, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
           <Cloth color="#efe6d2" />
         </mesh>
@@ -616,7 +616,7 @@ function Hand({ side, skin, glove, metal }: { side: number; skin: string; glove?
   return (
     <group rotation={[0.25, 0, 0]}>
       {/* palm */}
-      <mesh scale={[1, 0.45, 1.2]} position={[0, -0.005, 0.012]} castShadow>
+      <mesh scale={[1, 0.45, 1.2]} position={[0, -0.005, 0.012]}>
         <sphereGeometry args={[0.05, 12, 10]} />
         {Mat}
       </mesh>
@@ -674,7 +674,7 @@ function Arm({
     <group ref={armRef} position={[side * shoulderX, 0, 0.02]} rotation={rot}>
       {/* shoulder cap / pauldron */}
       {armor ? (
-        <mesh position={[side * 0.01, 0.02, 0]} scale={[1, 0.8, 1]} castShadow>
+        <mesh position={[side * 0.01, 0.02, 0]} scale={[1, 0.8, 1]}>
           <sphereGeometry args={[B.armR + 0.032, 14, 10]} />
           <Metal />
         </mesh>
@@ -696,7 +696,7 @@ function Arm({
       </mesh>
       {(sleeves === "puffed" || sleeves === "slashed") && !armor && kind !== "rags" && (
         <group position={[0, -B.armLen * 0.42, 0]}>
-          <mesh scale={[1, 1.25, 1]} castShadow>
+          <mesh scale={[1, 1.25, 1]}>
             <sphereGeometry args={[B.armR * 1.55, 14, 12]} />
             <Cloth color={sleeves === "slashed" ? accent : upperColor} />
           </mesh>
@@ -711,7 +711,7 @@ function Arm({
       )}
       {/* forearm (pivot at elbow) */}
       <group ref={foreRef} position={[0, -B.armLen, 0]} rotation={[elbow, 0, 0]}>
-        <mesh position={[0, -B.foreLen / 2, 0]} castShadow>
+        <mesh position={[0, -B.foreLen / 2, 0]}>
           <cylinderGeometry args={[B.armR * 0.82, B.armR * 0.58, B.foreLen, 12]} />
           {armor ? <Metal /> : bareFore ? <Skin color={skin} /> : <Cloth color={sleeves === "slashed" || sleeves === "puffed" ? sleeveColor : upperColor} />}
         </mesh>
@@ -747,7 +747,7 @@ function Boot({ color, cuff = false, metal = false }: { color: string; cuff?: bo
   return (
     <group>
       {/* shaft, wider at the calf */}
-      <mesh position={[0, 0.12, 0]} castShadow>
+      <mesh position={[0, 0.12, 0]}>
         <cylinderGeometry args={[0.078, 0.068, 0.24, 12]} />
         {metal ? <Metal /> : <Leather color={color} />}
       </mesh>
@@ -764,7 +764,7 @@ function Boot({ color, cuff = false, metal = false }: { color: string; cuff?: bo
         </mesh>
       )}
       {/* ankle + instep */}
-      <mesh position={[0, 0.045, 0.04]} scale={[1, 0.75, 1.5]} castShadow>
+      <mesh position={[0, 0.045, 0.04]} scale={[1, 0.75, 1.5]}>
         <sphereGeometry args={[0.065, 12, 10]} />
         {metal ? <Metal /> : <Leather color={color} />}
       </mesh>
@@ -818,7 +818,7 @@ function Legs({ pose, look, B, hipY }: { pose: "seated" | "standing"; look: Figu
         </mesh>
         {/* apron: a panel that follows the front of the skirt */}
         {look.outfit?.apron && (
-          <mesh position={[0, (hipY + 0.14) * 0.5, 0]} castShadow>
+          <mesh position={[0, (hipY + 0.14) * 0.5, 0]}>
             <cylinderGeometry args={[topR + 0.02, botR * 0.9 + 0.02, hipY + 0.14, 14, 1, true, -0.95, 1.9]} />
             <Cloth color={look.outfit.apron} />
           </mesh>
@@ -848,7 +848,7 @@ function Legs({ pose, look, B, hipY }: { pose: "seated" | "standing"; look: Figu
                 <sphereGeometry args={[thighR * 0.95, 10, 8]} />
                 <Cloth color={hose} coarse={coarse} />
               </mesh>
-              <mesh position={[0, -shinLen / 2 - 0.02, 0]} castShadow>
+              <mesh position={[0, -shinLen / 2 - 0.02, 0]}>
                 <cylinderGeometry args={[shinR * 1.05, shinR * 0.72, shinLen + 0.04, 12]} />
                 {greaves ? <Metal /> : <Cloth color={hose} coarse={coarse} />}
               </mesh>
@@ -875,7 +875,7 @@ function Legs({ pose, look, B, hipY }: { pose: "seated" | "standing"; look: Figu
             <sphereGeometry args={[thighR * 0.85, 10, 8]} />
             <Cloth color={hose} coarse={coarse} />
           </mesh>
-          <mesh position={[0, -thighLen - shinLen / 2, 0]} castShadow>
+          <mesh position={[0, -thighLen - shinLen / 2, 0]}>
             <cylinderGeometry args={[thighR * 0.82, shinR * 0.72, shinLen, 12]} />
             {greaves ? <Metal /> : <Cloth color={hose} coarse={coarse} />}
           </mesh>
@@ -891,7 +891,7 @@ function Legs({ pose, look, B, hipY }: { pose: "seated" | "standing"; look: Figu
 export function Stool({ seatY = 0.4, r = 0.24 }: { seatY?: number; r?: number }) {
   return (
     <group>
-      <mesh position={[0, seatY - 0.03, 0]} castShadow receiveShadow>
+      <mesh position={[0, seatY - 0.03, 0]} receiveShadow>
         <cylinderGeometry args={[r, r * 0.92, 0.06, 14]} />
         <Wood base="#5a3a1c" dark="#1f1206" planks={3} />
       </mesh>
@@ -902,7 +902,7 @@ export function Stool({ seatY = 0.4, r = 0.24 }: { seatY?: number; r?: number })
             key={i}
             position={[Math.cos(a) * r * 0.62, (seatY - 0.06) / 2, Math.sin(a) * r * 0.62]}
             rotation={[Math.sin(a) * 0.16, 0, -Math.cos(a) * 0.16]}
-            castShadow
+           
           >
             <cylinderGeometry args={[0.028, 0.035, seatY - 0.06, 8]} />
             <Wood base="#4a2e14" dark="#1f1206" planks={1} />
@@ -994,7 +994,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         </Torso>
         {/* belly, hanging forward over the belt */}
         {B.belly > 0 && (
-          <mesh position={[0, chestY - 0.1, B.torsoR * 0.35]} scale={[1.15, 0.85, 0.95]} castShadow>
+          <mesh position={[0, chestY - 0.1, B.torsoR * 0.35]} scale={[1.15, 0.85, 0.95]}>
             <sphereGeometry args={[B.torsoR * 1.0, 18, 14]} />
             <Cloth color={bodyColor} {...glow} />
           </mesh>
@@ -1003,12 +1003,12 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {o.vest && (
           <group position={[0, chestY + 0.01, 0]} scale={[1.25, 1, 0.84 + B.belly * 0.2]}>
             {[-1, 1].map((side) => (
-              <mesh key={side} castShadow>
+              <mesh key={side}>
                 <cylinderGeometry args={[B.torsoR * 1.1, B.torsoR * 1.04, B.torsoLen + B.torsoR * 1.3, 10, 1, true, side > 0 ? 0.3 : -1.55, 1.25]} />
                 <Leather color={o.vest ?? "#6b4423"} />
               </mesh>
             ))}
-            <mesh castShadow>
+            <mesh>
               <cylinderGeometry args={[B.torsoR * 1.1, B.torsoR * 1.04, B.torsoLen + B.torsoR * 1.3, 14, 1, true, Math.PI - 1.35, 2.7]} />
               <Leather color={o.vest ?? "#6b4423"} />
             </mesh>
@@ -1032,7 +1032,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* surcoat + cross for armour */}
         {armor && (
           <group position={[0, chestY - 0.02, FZ + 0.01]}>
-            <mesh castShadow>
+            <mesh>
               <boxGeometry args={[B.torsoR * 1.3, B.torsoLen + B.torsoR * 1.4, 0.025]} />
               <Cloth color={color} {...glow} />
             </mesh>
@@ -1054,7 +1054,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* cloak draped from the shoulders down the back */}
         {o.cloak && (
           <group position={[0, chestY + B.torsoLen / 2 + B.torsoR * 0.2, -0.02]}>
-            <mesh position={[0, -(B.torsoLen + B.torsoR * 2.4) / 2, -0.03]} rotation={[0, Math.PI, 0]} castShadow>
+            <mesh position={[0, -(B.torsoLen + B.torsoR * 2.4) / 2, -0.03]} rotation={[0, Math.PI, 0]}>
               <cylinderGeometry args={[B.shoulderW + 0.05, B.shoulderW + 0.12, B.torsoLen + B.torsoR * 2.2, 16, 1, true, -1.1, 2.2]} />
               <Cloth color={o.cloak} />
             </mesh>
@@ -1069,7 +1069,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {o.harness &&
           [-1, 1].map((side) => (
             <group key={side} position={[side * B.torsoR * 0.42, chestY + 0.02, FZ * (B.belly > 0 ? 1.28 : 1.08)]} rotation={[0.1, 0, side * -0.18]}>
-              <mesh castShadow>
+              <mesh>
                 <boxGeometry args={[0.055, B.torsoLen + B.torsoR * 1.5, 0.014]} />
                 <Leather color={o.harness ?? "#4a2e16"} />
               </mesh>
@@ -1088,7 +1088,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* baldric: one strap from the right shoulder to the left hip */}
         {o.baldric && (
           <group position={[0, chestY, FZ * (B.belly > 0 ? 1.25 : 1.08)]} rotation={[0.08, 0, 0.55]}>
-            <mesh castShadow>
+            <mesh>
               <boxGeometry args={[0.048, B.torsoLen + B.torsoR * 2.3, 0.014]} />
               <Leather color={o.baldric} />
             </mesh>
@@ -1128,7 +1128,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* bar towel tucked into the belt */}
         {o.towel && (
           <group position={[-B.torsoR * 0.95, torsoBase - 0.06, B.torsoR * 0.35]} rotation={[0.1, 0.3, 0.1]}>
-            <mesh castShadow>
+            <mesh>
               <boxGeometry args={[0.1, 0.24, 0.02]} />
               <Cloth color={typeof o.towel === "string" ? o.towel : "#efe6d2"} />
             </mesh>
@@ -1158,7 +1158,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* corset laced over the bodice */}
         {o.corset && (
           <group position={[0, chestY - B.torsoR * 0.35, 0]}>
-            <mesh castShadow scale={[1.22, 1, 0.84]}>
+            <mesh scale={[1.22, 1, 0.84]}>
               <cylinderGeometry args={[B.torsoR * 1.0, B.torsoR * 1.1, B.torsoLen + B.torsoR * 0.6, 16]} />
               <Leather color={o.corset} />
             </mesh>
@@ -1173,7 +1173,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* bust under the chemise, only on the dress silhouette */}
         {kind === "dress" &&
           [-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.085, chestY + 0.08, FZ * 0.85]} castShadow>
+            <mesh key={side} position={[side * 0.085, chestY + 0.08, FZ * 0.85]}>
               <sphereGeometry args={[0.095, 14, 12]} />
               <Cloth color={sleeveColor} />
             </mesh>
@@ -1181,7 +1181,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* apron (a skirted figure gets its apron from the skirt instead) */}
         {o.apron && !look.legs?.skirt && (
           <group>
-            <mesh position={[0, chestY - B.torsoR * 0.2 - 0.08, FZ + 0.03]} rotation={[0.1, 0, 0]} castShadow>
+            <mesh position={[0, chestY - B.torsoR * 0.2 - 0.08, FZ + 0.03]} rotation={[0.1, 0, 0]}>
               <boxGeometry args={[B.torsoR * 1.8, B.torsoLen + B.torsoR * 1.6, 0.02]} />
               <Cloth color={o.apron} />
             </mesh>
@@ -1197,7 +1197,7 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
             <mesh
               position={[0, pose === "seated" ? torsoBase - 0.02 : torsoBase - 0.4, pose === "seated" ? FZ + 0.2 : FZ + 0.1]}
               rotation={[pose === "seated" ? -1.35 : 0.12, 0, 0]}
-              castShadow
+             
             >
               <boxGeometry args={[B.torsoR * 1.7, pose === "seated" ? 0.36 : 0.75, 0.02]} />
               <Cloth color={o.apron} />
