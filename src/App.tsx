@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "./lib/useGameStore";
 import { audioManager } from "./lib/audioManager";
 import Experience from "./components/Experience";
@@ -13,7 +13,25 @@ import FooterOverlay from "./components/ui/FooterOverlay";
 export default function App() {
   const started = useGameStore((s) => s.started);
   const setReducedMotion = useGameStore((s) => s.setReducedMotion);
+  const setScrolledPast = useGameStore((s) => s.setScrolledPast);
   const [loading, setLoading] = useState(true);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  // The root div (not the window) scrolls. Once the reader is down at the
+  // band/shows content, the fixed overlays tuck themselves out of the way.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => setScrolledPast(el.scrollTop > el.clientHeight * 0.55);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [setScrolledPast]);
+
+  // When a song plays out, carry on to the next one so the set loops.
+  useEffect(() => {
+    audioManager.setOnSongEnd(() => useGameStore.getState().nextSong());
+    return () => audioManager.setOnSongEnd(null);
+  }, []);
 
   // Respect reduced motion preference
   useEffect(() => {
@@ -36,7 +54,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="relative w-full h-full overflow-x-hidden overflow-y-auto">
+    <div id="app-scroll" ref={scroller} className="relative w-full h-full overflow-x-hidden overflow-y-auto">
       {/* Fixed full-screen canvas */}
       <div className="fixed inset-0 w-full h-full">
         <Experience />
@@ -50,9 +68,10 @@ export default function App() {
             "radial-gradient(ellipse at 50% 42%, transparent 42%, rgba(23,17,11,0.5) 78%, rgba(14,10,6,0.92) 100%)",
         }}
       />
-      {/* Canvas grain — cracked-varnish noise over everything */}
+      {/* Canvas grain — cracked-varnish noise over everything (desktop only:
+          each full-screen layer is a composite pass a phone GPU can't spare) */}
       <div
-        className="fixed inset-0 z-10 pointer-events-none"
+        className="fixed inset-0 z-10 pointer-events-none hidden md:block"
         style={{
           // plain alpha blending: mix-blend modes over a live WebGL canvas
           // force an expensive full-screen composite every frame
@@ -63,7 +82,7 @@ export default function App() {
       />
       {/* Etching crosshatch — engraving-plate diagonal strokes */}
       <div
-        className="fixed inset-0 z-10 pointer-events-none"
+        className="fixed inset-0 z-10 pointer-events-none hidden md:block"
         style={{
           opacity: 0.12,
           backgroundImage:

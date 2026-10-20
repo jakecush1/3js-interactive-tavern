@@ -5,24 +5,26 @@ import { X } from "lucide-react";
 import Portrait from "./Portrait";
 
 // BAND MEMBER PANEL
-// Appears (top-right) when a member is clicked. Shows name, instrument, bio,
-// and live state (Idle / Playing / Featured).
+// Appears when a member is clicked: top-right on desktop, a sheet above the
+// player bar on phones. Shows name, instrument, bio, and live state
+// (Playing / Featured). Hidden once the page is scrolled to the content.
 
 export default function BandMemberPanel() {
   const focusedMemberId = useGameStore((s) => s.focusedMemberId);
   const focusMember = useGameStore((s) => s.focusMember);
   const isPlaying = useGameStore((s) => s.isPlaying);
   const currentSongId = useGameStore((s) => s.currentSongId);
+  const scrolledPast = useGameStore((s) => s.scrolledPast);
 
   const member = focusedMemberId ? getBandMember(focusedMemberId) : null;
-  if (!member) return null;
+  if (!member || scrolledPast) return null;
 
   const song = getSong(currentSongId);
   const state = isPlaying && song ? "Playing" : "Featured";
 
   return (
-    <div className="pointer-events-auto absolute top-20 right-4 z-40 w-[290px] max-w-[calc(100vw-2rem)] animate-fade-in">
-      <div className="parchment p-5">
+    <div className="pointer-events-auto absolute z-40 animate-fade-in inset-x-3 bottom-[4.75rem] md:inset-x-auto md:bottom-auto md:top-20 md:right-4 md:w-[290px]">
+      <div className="parchment p-4 md:p-5 max-h-[44vh] md:max-h-[calc(100vh-7rem)] overflow-y-auto tavern-scroll">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
             {/* Portrait tile — framed like a tiny gallery piece */}
@@ -38,7 +40,7 @@ export default function BandMemberPanel() {
           </div>
           <button
             onClick={() => focusMember(null)}
-            className="text-tavern-candle/50 hover:text-tavern-candle"
+            className="text-tavern-candle/50 hover:text-tavern-candle p-1 -m-1"
             aria-label="Close band member info"
           >
             <X size={16} />

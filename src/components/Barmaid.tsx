@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
-import type { Group } from "three";
+import type { Group, Object3D } from "three";
 import { useGameStore } from "../lib/useGameStore";
+import { glowAnchors } from "../lib/glow";
 import Figure, { type FigureLook } from "./characters/Figure";
 import { Wood } from "./characters/materials";
 
@@ -14,6 +15,12 @@ import { Wood } from "./characters/materials";
 // click her to play it.
 
 const SONG_ID = "angelic-frick";
+
+// Her round: an ellipse that circles the band and the table, passing behind
+// the back row between the organ and the wall, outside the horse on the
+// left and inside the bar stools on the right. The spare instruments, the
+// keg and the barrels are placed to stay clear of it.
+const ROUND = { cx: -0.5, cz: 0.25, rx: 4.5, rz: 3.2, speed: 0.22 };
 
 // Follows the painted reference board in /public/band/members/Barmaid Character Reference.png:
 // chestnut hair piled under a frilled white cap, off-the-shoulder chemise
@@ -73,6 +80,7 @@ export default function Barmaid() {
   const body = useRef<Group>(null);
   const rightArm = useRef<Group>(null);
   const head = useRef<Group>(null);
+  const glowAnchor = useRef<Object3D>(null);
   const [hovered, setHovered] = useState(false);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
   const selectSong = useGameStore((s) => s.selectSong);
@@ -82,16 +90,25 @@ export default function Barmaid() {
   const glow = hovered || isActive;
   const glowColor = isActive ? "#ffd97a" : "#e7c66a";
 
+  // While her song plays she carries the shared "active" glow light.
+  useEffect(() => {
+    const me = glowAnchor.current;
+    if (isActive) glowAnchors.active = me;
+    return () => {
+      if (glowAnchors.active === me) glowAnchors.active = null;
+    };
+  }, [isActive]);
+
   useFrame((state) => {
     if (!walker.current) return;
     const raw = state.clock.elapsedTime;
     // elliptical stroll around the band circle
-    const t = (reducedMotion ? 0 : raw) * 0.22 + 1.2;
-    const x = -0.4 + Math.sin(t) * 4.3;
-    const z = 0.7 + Math.cos(t) * 2.9;
+    const t = (reducedMotion ? 0 : raw) * ROUND.speed + 1.2;
+    const x = ROUND.cx + Math.sin(t) * ROUND.rx;
+    const z = ROUND.cz + Math.cos(t) * ROUND.rz;
     walker.current.position.set(x, 0, z);
     // face the direction of travel
-    walker.current.rotation.y = Math.atan2(Math.cos(t) * 4.3, -Math.sin(t) * 2.9);
+    walker.current.rotation.y = Math.atan2(Math.cos(t) * ROUND.rx, -Math.sin(t) * ROUND.rz);
     if (body.current && !reducedMotion) {
       // brisk walk bob + hip sway
       body.current.position.y = Math.abs(Math.sin(raw * 6)) * 0.045;
@@ -124,14 +141,18 @@ export default function Barmaid() {
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
+        glowAnchors.hover = glowAnchor.current;
         document.body.style.cursor = "pointer";
       }}
       onPointerOut={() => {
         setHovered(false);
+        if (glowAnchors.hover === glowAnchor.current) glowAnchors.hover = null;
         document.body.style.cursor = "auto";
       }}
     >
       <group ref={body}>
+        {/* where the shared glow light sits when she's hovered or playing */}
+        <object3D ref={glowAnchor} position={[0, 1.3, 0.3]} />
         <Figure
           look={LOOK}
           pose="standing"
@@ -141,8 +162,6 @@ export default function Barmaid() {
           armPose={{ left: [0.15, 0, 0.95], leftElbow: -0.9, right: [-0.3, 0, -2.3], rightElbow: -0.6 }}
           heldRight={<Tankard />}
         />
-        {/* glow halo, matching the other song triggers */}
-        {glow && <pointLight position={[0, 1.3, 0.3]} color={glowColor} intensity={1.2} distance={1.6} />}
       </group>
 
       {hovered && (

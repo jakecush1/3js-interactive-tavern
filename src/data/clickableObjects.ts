@@ -49,12 +49,13 @@ export const clickableObjects: ClickableObject[] = [
   // NOTE: "Angelic Frick" is triggered by clicking the barmaid (see
   // src/components/Barmaid.tsx), not a static object in this list.
   {
-    // Giant old-style mead keg on a side table beside Freddie Munter
+    // Giant old-style mead keg on a side table beside Freddie Munter,
+    // tucked inside the barmaid's round (see Barmaid.tsx)
     id: "mead-keg",
     label: "Play Yennifer Holepez",
     action: "play-song",
     songId: "yennifer-holepez",
     kind: "keg",
-    position: [3.5, 0.0, 1.2],
+    position: [2.9, 0.0, -0.5],
   },
 ];

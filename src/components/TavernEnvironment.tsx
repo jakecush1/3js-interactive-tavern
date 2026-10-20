@@ -3,6 +3,7 @@ import { useFrame, useLoader } from "@react-three/fiber";
 import { TextureLoader, SRGBColorSpace, CanvasTexture } from "three";
 import type { Group, Mesh, MeshBasicMaterial, PointLight, Sprite, SpriteMaterial } from "three";
 import { useGameStore } from "../lib/useGameStore";
+import { useIsMobile } from "../lib/useMedia";
 import { bannerTexture, plasterTexture, rugTexture, stoneTexture, windowTexture, woodTexture } from "../lib/textures";
 import { Metal, Wood } from "./characters/materials";
 import { Bottle, Jug } from "./Bar";
@@ -206,6 +207,8 @@ function HearthFire() {
 function Smoke() {
   const groupRef = useRef<Group>(null);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
+  const mobile = useIsMobile();
+  const count = mobile ? 4 : 8;
 
   const tex = useMemo(() => {
     const c = document.createElement("canvas");
@@ -223,13 +226,13 @@ function Smoke() {
 
   const puffs = useMemo(
     () =>
-      Array.from({ length: 8 }, (_, i) => ({
-        base: [-5.5 + i * 1.6, 2.6 + (i % 3) * 0.8, -2.8 + (i % 2) * 2.6] as const,
+      Array.from({ length: count }, (_, i) => ({
+        base: [-5.5 + (i * 12.8) / count, 2.6 + (i % 3) * 0.8, -2.8 + (i % 2) * 2.6] as const,
         scale: 2.8 + (i % 3) * 1.3,
         speed: 0.06 + (i % 3) * 0.03,
         phase: i * 1.7,
       })),
-    []
+    [count]
   );
 
   useFrame((state) => {
@@ -814,7 +817,7 @@ export default function TavernEnvironment() {
       </group>
 
       {/* BARRELS, CRATES */}
-      <Barrel position={[3.1, 0.5, -2.2]} />
+      <Barrel position={[-5.7, 0.5, -0.4]} />
       <Barrel position={[-4.2, 0.5, -2.6]} />
       <Barrel position={[-5.1, 0.5, -2.9]} scale={0.9} />
       <Barrel position={[-4.65, 1.45, -2.75]} rotation={[0, 0.4, 0]} scale={0.85} />
@@ -824,8 +827,9 @@ export default function TavernEnvironment() {
       {/* CANDLES on the band's table and about the room */}
       <Candle position={[-0.5, 0.57, 1.7]} />
       <Candle position={[0.5, 0.57, 1.9]} light={false} />
-      <Candle position={[-3.2, 1.21, -3.2]} light={false} />
-      <Candle position={[2.0, 1.31, -3.4]} light={false} />
+      {/* on the stacked barrel and the left window sill */}
+      <Candle position={[-4.65, 1.99, -2.75]} light={false} />
+      <Candle position={[-6.45, 2.0, -2.4]} light={false} />
 
       {/* GALLERY WALL — framed old masters from /public/artwork */}
       <WallPainting

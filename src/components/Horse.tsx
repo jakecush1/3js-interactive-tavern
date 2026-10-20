@@ -34,7 +34,7 @@ export default function Horse() {
   });
 
   return (
-    <group position={[-3.7, 0, 1.4]} rotation={[0, 0.9, 0]}>
+    <group position={[-3.9, 0, 1.1]} rotation={[0, 0.9, 0]}>
       <group ref={body}>
         {/* torso */}
         <mesh position={[0, 0.95, 0]} castShadow>

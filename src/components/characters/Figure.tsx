@@ -55,7 +55,10 @@ export type FigureLook = {
   blush?: number;
   gloves?: string;
   // Real face: transparent PNG cutout of a head, wrapped onto the skull.
-  face?: { url: string; back?: string; height?: number; keyTolerance?: number };
+  // side: "back" puts the face on the far side of the skull, for someone
+  // whose body faces away from the room (Joan at his organ) but whose face
+  // the audience should still see.
+  face?: { url: string; back?: string; height?: number; keyTolerance?: number; side?: "front" | "back" };
 };
 
 export type FigureRefs = {
@@ -1286,7 +1289,9 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
         {/* head (pivot at the top of the neck) */}
         <group ref={refs?.head} position={[0, neckTop, 0]} rotation={[-B.hunch * 0.85, 0, 0]}>
           {look.face ? (
+            <group rotation={[0, look.face.side === "back" ? Math.PI : 0, 0]}>
             <PhotoHead url={look.face.url} back={look.face.back ?? look.hair?.color ?? skin} height={look.face.height} headR={B.headR} tolerance={look.face.keyTolerance} longHair={look.hair?.style === "long" ? look.hair.color ?? "#3a2616" : undefined} />
+            </group>
           ) : (
             <ProceduralHead look={look} headR={B.headR} skin={skin} />
           )}

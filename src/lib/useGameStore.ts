@@ -13,6 +13,8 @@ type GameState = {
   reducedMotion: boolean;
   bottleSpawnNonce: number;
   lastSpawnPoint: [number, number, number] | null;
+  /** The page is scrolled down past the 3D scene to the band/shows content. */
+  scrolledPast: boolean;
 
   start: () => void;
   setLoaded: (v: boolean) => void;
@@ -24,6 +26,7 @@ type GameState = {
   focusMember: (id: string | null) => void;
   spawnBottles: (point?: [number, number, number]) => void;
   setReducedMotion: (v: boolean) => void;
+  setScrolledPast: (v: boolean) => void;
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -37,6 +40,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   reducedMotion: false,
   bottleSpawnNonce: 0,
   lastSpawnPoint: null,
+  scrolledPast: false,
 
   start: () => set({ started: true }),
   setLoaded: (v) => set({ loaded: v }),
@@ -57,6 +61,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastSpawnPoint: point ?? null,
     })),
   setReducedMotion: (v) => set({ reducedMotion: v }),
+  setScrolledPast: (v) => set((s) => (s.scrolledPast === v ? s : { scrolledPast: v })),
 }));
 
 // Expose for dev tooling (harmless in production)

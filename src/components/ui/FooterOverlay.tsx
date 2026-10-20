@@ -35,6 +35,8 @@ const INSTAGRAM_URL = "https://www.instagram.com/not_side_project/";
 
 export default function FooterOverlay() {
   const selectSong = useGameStore((s) => s.selectSong);
+  const scrolledPast = useGameStore((s) => s.scrolledPast);
+  const memberOpen = useGameStore((s) => s.focusedMemberId !== null);
   const shows = upcomingShows();
 
   const scrollToContent = () => {
@@ -43,14 +45,28 @@ export default function FooterOverlay() {
 
   return (
     <>
-      {/* Scroll affordance */}
-      <button
-        onClick={scrollToContent}
-        className="pointer-events-auto absolute bottom-4 right-4 z-30 hidden md:flex items-center gap-1.5 font-mono uppercase tracking-wider text-tavern-linen/60 hover:text-tavern-gold text-[11px]"
-        aria-label="Scroll to band information"
-      >
-        Learn more <ChevronDown size={14} className="animate-bounce" />
-      </button>
+      {/* Scroll affordance: a placard chip above the player bar on phones,
+          a quiet link bottom-right on desktop; gone once you're down there */}
+      {!scrolledPast && (
+        <>
+          {!memberOpen && (
+          <button
+            onClick={scrollToContent}
+            className="pointer-events-auto fixed right-3 bottom-[4.75rem] z-30 md:hidden placard px-3 py-1.5 flex items-center gap-1.5 font-mono uppercase tracking-wider text-[10px]"
+            aria-label="Scroll to band information"
+          >
+            Band · Shows <ChevronDown size={13} className="animate-bounce" />
+          </button>
+          )}
+          <button
+            onClick={scrollToContent}
+            className="pointer-events-auto fixed bottom-4 right-4 z-30 hidden md:flex items-center gap-1.5 font-mono uppercase tracking-wider text-tavern-linen/60 hover:text-tavern-gold text-[11px]"
+            aria-label="Scroll to band information"
+          >
+            Learn more <ChevronDown size={14} className="animate-bounce" />
+          </button>
+        </>
+      )}
 
       {/* Content sections live below the fold (canvas is 100vh) */}
       <div className="pointer-events-auto relative z-20 bg-gradient-to-b from-transparent to-[#17110b]">
@@ -62,7 +78,7 @@ export default function FooterOverlay() {
               "repeating-linear-gradient(45deg, rgba(233,220,190,0.03) 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, rgba(0,0,0,0.35) 0 1px, transparent 1px 9px), radial-gradient(ellipse at 50% 0%, rgba(198,138,44,0.07), transparent 60%)",
           }}
         >
-          <div className="max-w-4xl mx-auto px-6 py-20 space-y-24">
+          <div className="max-w-4xl mx-auto px-5 sm:px-6 pt-20 pb-28 space-y-20 sm:space-y-24">
             {/* ABOUT */}
             <section id="about" className="scroll-mt-24">
               <p className="font-mono text-tavern-moss text-xs tracking-[0.3em] uppercase mb-3">

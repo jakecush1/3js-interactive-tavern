@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import type { Group } from "three";
 import type { ClickableObject as ClickableObjectData } from "../data/clickableObjects";
 import { useGameStore } from "../lib/useGameStore";
+import { glowAnchors } from "../lib/glow";
 
 // CLICKABLE OBJECT
 // Glowing interactive props that trigger songs. Each kind renders different
@@ -19,6 +20,15 @@ export default function ClickableObject({ object }: Props) {
   const reducedMotion = useGameStore((s) => s.reducedMotion);
 
   const isActive = object.songId === currentSongId;
+
+  // The playing song's trigger keeps the shared "active" glow light.
+  useEffect(() => {
+    const me = group.current;
+    if (isActive) glowAnchors.active = me;
+    return () => {
+      if (glowAnchors.active === me) glowAnchors.active = null;
+    };
+  }, [isActive]);
 
   useFrame((state) => {
     if (!group.current) return;
@@ -55,17 +65,16 @@ export default function ClickableObject({ object }: Props) {
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
+        glowAnchors.hover = group.current;
         document.body.style.cursor = "pointer";
       }}
       onPointerOut={() => {
         setHovered(false);
+        if (glowAnchors.hover === group.current) glowAnchors.hover = null;
         document.body.style.cursor = "auto";
       }}
     >
       {renderKind(object, glow, glowColor)}
-
-      {/* glow halo */}
-      {glow && <pointLight color={glowColor} intensity={1.2} distance={1.6} />}
 
       {hovered && (
         <Html

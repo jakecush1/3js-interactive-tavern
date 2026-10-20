@@ -110,7 +110,9 @@ export const bandMembers: BandMember[] = [
     look: {
       build: "broad",
       skin: "#dfae86",
-      face: { url: "/band/Heads/admiral-head.png", back: "#1a120c", height: 0.5 },
+      // He sits with his back to the room, playing the organ, so his face
+      // goes on the back of his head: the audience still gets to see him.
+      face: { url: "/band/Heads/admiral-head.png", back: "#1a120c", height: 0.5, side: "back" },
       outfit: {
         kind: "armor",
         color: "#1f2a4a",

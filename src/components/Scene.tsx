@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Preload } from "@react-three/drei";
 import { clickableObjects } from "../data/clickableObjects";
 import { useGameStore } from "../lib/useGameStore";
 import TavernEnvironment from "./TavernEnvironment";
@@ -13,6 +14,7 @@ import BottleSpawner from "./BottleSpawner";
 import LightingRig from "./LightingRig";
 import CameraRig from "./CameraRig";
 import Effects from "./Effects";
+import GlowLights from "./GlowLights";
 
 export default function Scene() {
   const spawnBottles = useGameStore((s) => s.spawnBottles);
@@ -20,6 +22,7 @@ export default function Scene() {
   return (
     <>
       <LightingRig />
+      <GlowLights />
       <CameraRig />
       {/* smoky haze: warm fog, close enough to soften the far corners
           without milking out the band */}
@@ -55,6 +58,10 @@ export default function Scene() {
       </Suspense>
 
       <BottleSpawner />
+
+      {/* Compile every shader once up front instead of stalling the first
+          time each material scrolls into view */}
+      <Preload all />
     </>
   );
 }

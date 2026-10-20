@@ -50,7 +50,6 @@ export default function FallingBottle({ id, position, vx, vz, rotSpeed, onDone }
       vy.current *= -0.28; // bounce
       if (Math.abs(vy.current) < 0.4) {
         settled.current = true;
-        console.log(`[bottle] settled id=${id} at [${pos.current[0].toFixed(2)},${pos.current[1].toFixed(2)},${pos.current[2].toFixed(2)}]`);
         // despawn after lying still for a moment
         setTimeout(() => { if (!doneRef.current) onDone(id); }, 5000);
       }

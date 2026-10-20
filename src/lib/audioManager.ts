@@ -21,6 +21,12 @@ class AudioManager {
   private volume = 0.7;
   private muted = false;
   private initialized = false;
+  private onSongEnd: ((songId: string) => void) | null = null;
+
+  /** Called when a song plays out; the store uses it to move on to the next tune. */
+  setOnSongEnd(cb: ((songId: string) => void) | null) {
+    this.onSongEnd = cb;
+  }
 
   // Called after the user clicks "Enter the Tavern" (unlocks audio context).
   init() {
@@ -31,9 +37,12 @@ class AudioManager {
     songs.forEach((song) => {
       const howl = new Howl({
         src: [song.file],
-        loop: true,
+        loop: false, // the set loops as a playlist (see onend), not one song on repeat
         volume: 0,
         html5: false, // Web Audio: fade()/crossfade works reliably (html5 fades stay stuck at 0)
+        onend: () => {
+          if (this.currentId === song.id) this.onSongEnd?.(song.id);
+        },
         onloaderror: () => {
           const t = this.tracks.get(song.id);
           if (t) t.available = false;
