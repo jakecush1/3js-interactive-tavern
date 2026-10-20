@@ -14,7 +14,7 @@ const info=await p.evaluate(()=>{const st=window.__r3f;const c=st.camera;const V
  const proj=(x,y,z)=>{const v=new V(x,y,z);v.project(c);return [+v.x.toFixed(2),+v.y.toFixed(2)];};
  let lights=0;st.scene.traverse(o=>{if(o.isLight)lights++;});
  return {size:[st.size.width,st.size.height],fov:c.fov,aspect:+c.aspect.toFixed(3),pos:c.position.toArray().map(n=>+n.toFixed(2)),
-  bread:proj(-1.65,0.2,1.35),jhole:proj(-2.2,1.0,0.6),freddie:proj(2.2,1.0,0.6),chandelier:proj(0,3.25,0.9),touchAction:st.gl.domElement.style.touchAction,
+  bread:proj(-1.65,0.2,1.35),jhole:proj(-2.2,1.0,0.6),admiral:proj(2.2,1.0,0.6),chandelier:proj(0,3.25,0.9),touchAction:st.gl.domElement.style.touchAction,
   lights,calls:st.gl.info.render.calls,programs:st.gl.info.programs.length,shadows:st.gl.shadowMap.enabled,dpr:st.viewport.dpr};});
 console.log(JSON.stringify(info));
 if(OUT){await p.screenshot({path:OUT});console.log("saved",OUT);}

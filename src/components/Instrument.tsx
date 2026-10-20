@@ -141,7 +141,9 @@ function renderInstrument(type: InstrumentType) {
       );
     case "organ":
       return (
-        // Cathedral organ console: the player faces it, back to the room.
+        // Cathedral organ console in front of the player. Joan sits side-on
+        // to the room (see bandMembers.ts), so the audience sees the console
+        // and pipes in profile; local +x is the audience side.
         <group position={[0, -0.55, 0.55]}>
           {/* console body */}
           <mesh position={[0, 0.5, 0.1]}>
@@ -184,15 +186,16 @@ function renderInstrument(type: InstrumentType) {
               <meshStandardMaterial color="#c8a24b" metalness={0.65} roughness={0.3} />
             </mesh>
           ))}
-          {/* THE CHAIN — anchor chain percussion, hung off the console side */}
-          <mesh position={[-0.8, 1.02, -0.05]}>
+          {/* THE CHAIN — anchor chain percussion, hung off the audience end
+              of the console so it stays in view */}
+          <mesh position={[0.8, 1.02, -0.05]}>
             <boxGeometry args={[0.06, 0.05, 0.06]} />
             <meshStandardMaterial color="#2a1c10" />
           </mesh>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <mesh
               key={i}
-              position={[-0.8, 0.94 - i * 0.085, -0.05]}
+              position={[0.8, 0.94 - i * 0.085, -0.05]}
               rotation={[i % 2 ? Math.PI / 2 : 0, 0, 0]}
             >
               <torusGeometry args={[0.034, 0.012, 6, 10]} />
@@ -200,7 +203,7 @@ function renderInstrument(type: InstrumentType) {
             </mesh>
           ))}
           {/* spare flute resting on the console top — carved wood, per refs */}
-          <mesh position={[0.38, 1.04, -0.1]} rotation={[0, 0.5, Math.PI / 2]}>
+          <mesh position={[-0.38, 1.04, -0.1]} rotation={[0, -0.5, Math.PI / 2]}>
             <cylinderGeometry args={[0.025, 0.03, 0.6, 12]} />
             <meshStandardMaterial color="#7a4a26" roughness={0.6} />
           </mesh>

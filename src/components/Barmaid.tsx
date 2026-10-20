@@ -17,8 +17,8 @@ import { Wood } from "./characters/materials";
 const SONG_ID = "angelic-frick";
 
 // Her round: an ellipse that circles the band and the table, passing behind
-// the back row between the organ and the wall, outside the horse on the
-// left and inside the bar stools on the right. The spare instruments, the
+// the back row, outside the horse on the left and inside the bar stools on
+// the right. The spare instruments, the
 // keg and the barrels are placed to stay clear of it.
 const ROUND = { cx: -0.5, cz: 0.25, rx: 4.5, rz: 3.2, speed: 0.22 };
 

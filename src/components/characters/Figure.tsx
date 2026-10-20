@@ -55,10 +55,10 @@ export type FigureLook = {
   blush?: number;
   gloves?: string;
   // Real face: transparent PNG cutout of a head, wrapped onto the skull.
-  // side: "back" puts the face on the far side of the skull, for someone
-  // whose body faces away from the room (Joan at his organ) but whose face
-  // the audience should still see.
-  face?: { url: string; back?: string; height?: number; keyTolerance?: number; side?: "front" | "back" };
+  // yaw turns the whole head on the neck (radians about Y, positive = to
+  // the figure's left) for someone whose body faces away from the room,
+  // like Joan side-on at his organ, but whose face the audience should see.
+  face?: { url: string; back?: string; height?: number; keyTolerance?: number; yaw?: number };
 };
 
 export type FigureRefs = {
@@ -1286,15 +1286,17 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
           <Arm side={1} look={look} B={B} skin={skin} rot={rightRot} elbow={armPose?.rightElbow ?? -1.15} armRef={refs?.rightArm} foreRef={refs?.rightForearm} held={heldRight} shoulderX={SW} />
         </group>
 
-        {/* head (pivot at the top of the neck) */}
-        <group ref={refs?.head} position={[0, neckTop, 0]} rotation={[-B.hunch * 0.85, 0, 0]}>
-          {look.face ? (
-            <group rotation={[0, look.face.side === "back" ? Math.PI : 0, 0]}>
-            <PhotoHead url={look.face.url} back={look.face.back ?? look.hair?.color ?? skin} height={look.face.height} headR={B.headR} tolerance={look.face.keyTolerance} longHair={look.hair?.style === "long" ? look.hair.color ?? "#3a2616" : undefined} />
-            </group>
-          ) : (
-            <ProceduralHead look={look} headR={B.headR} skin={skin} />
-          )}
+        {/* head (pivot at the top of the neck). The face yaw sits outside the
+            animated pivot so a head bob still nods toward wherever the face
+            is looking. */}
+        <group rotation={[0, look.face?.yaw ?? 0, 0]}>
+          <group ref={refs?.head} position={[0, neckTop, 0]} rotation={[-B.hunch * 0.85, 0, 0]}>
+            {look.face ? (
+              <PhotoHead url={look.face.url} back={look.face.back ?? look.hair?.color ?? skin} height={look.face.height} headR={B.headR} tolerance={look.face.keyTolerance} longHair={look.hair?.style === "long" ? look.hair.color ?? "#3a2616" : undefined} />
+            ) : (
+              <ProceduralHead look={look} headR={B.headR} skin={skin} />
+            )}
+          </group>
         </group>
         {children}
       </group>

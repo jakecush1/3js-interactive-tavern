@@ -110,9 +110,10 @@ export const bandMembers: BandMember[] = [
     look: {
       build: "broad",
       skin: "#dfae86",
-      // He sits with his back to the room, playing the organ, so his face
-      // goes on the back of his head: the audience still gets to see him.
-      face: { url: "/band/Heads/admiral-head.png", back: "#1a120c", height: 0.5, side: "back" },
+      // He sits side-on to the room at the organ, so his head is turned on
+      // the neck to look straight out at the audience (yaw cancels the
+      // body rotation below).
+      face: { url: "/band/Heads/admiral-head.png", back: "#1a120c", height: 0.5, yaw: Math.PI / 2 - 0.2 },
       outfit: {
         kind: "armor",
         color: "#1f2a4a",
@@ -124,9 +125,11 @@ export const bandMembers: BandMember[] = [
       },
       legs: { hose: "#2a2d3a", boots: "#2a1a10", greaves: true },
     },
-    position: [0.8, 0, -1.4],
-    // Faces away from the circle, into the organ, like a proper organist
-    rotation: [0, Math.PI - 0.25, 0],
+    // Front right, in profile: he faces across the stage into the organ, so
+    // the audience sees the console and its pipes side-on. Nudged a touch
+    // toward the room so the pose reads as a player, not a silhouette.
+    position: [2.2, 0, 0.6],
+    rotation: [0, -Math.PI / 2 + 0.2, 0],
   },
   {
     id: "elowen",
@@ -157,8 +160,9 @@ export const bandMembers: BandMember[] = [
       gloves: "#3a2a1c",
       legs: { hose: "#3a2f26", boots: "#3b2614" },
     },
-    position: [2.2, 0, 0.6],
-    rotation: [0, -0.6, 0],
+    // Back right, mirroring Babe on the back left
+    position: [0.8, 0, -1.4],
+    rotation: [0, -0.25, 0],
   },
 ];
 
