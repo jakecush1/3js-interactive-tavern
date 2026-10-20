@@ -77,8 +77,9 @@ export default function LightingRig() {
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
       />
-      {/* soft warm fill from the front so faces toward the camera read */}
-      <pointLight position={[0, 3, 6]} intensity={0.45} color="#f0dcb0" distance={16} decay={1.6} />
+      {/* soft warm fill from the front so faces toward the camera read
+          (a directional light: cheaper per pixel than a point light) */}
+      <directionalLight position={[0, 3, 8]} intensity={0.22} color="#f0dcb0" />
       {/* cool rim from the windows on the left */}
       <directionalLight position={[-8, 4, 2]} intensity={0.25} color="#8ea8c8" />
     </>

@@ -207,7 +207,7 @@ export default function FooterOverlay() {
                             rel="noopener noreferrer"
                             className="btn-tavern font-medieval text-sm px-5 py-2 uppercase"
                           >
-                            Faire Info
+                            {show.infoLabel ?? "Event Info"}
                           </a>
                         )}
                         {show.updatesUrl && (
@@ -217,7 +217,7 @@ export default function FooterOverlay() {
                             rel="noopener noreferrer"
                             className="font-mono text-xs text-tavern-cobalt underline decoration-2 underline-offset-2 hover:text-tavern-velvet"
                           >
-                            Faire updates on Instagram
+                            {show.updatesLabel ?? "Updates on Instagram"}
                           </a>
                         )}
                       </div>

@@ -21,7 +21,7 @@ export default function Experience() {
   return (
     <Canvas
       shadows
-      dpr={[1, 1.5]}
+      dpr={[1, 1.3]}
       camera={{ position: [0, 2.4, 7.5], fov: 45 }}
       gl={{ antialias: true }}
       // expose the R3F state for perf probes (window.__r3f)

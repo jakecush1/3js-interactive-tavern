@@ -9,4 +9,5 @@ await p.goto("http://localhost:5174/"+(process.argv[3]||""),{waitUntil:"load",ti
 console.log("loaded in",Date.now()-t0);
 for(let i=0;i<20;i++){await new Promise(r=>setTimeout(r,1000));const ok=await p.evaluate(()=>{const x=[...document.querySelectorAll("button")].find(b=>/enter the tavern/i.test(b.textContent||""));if(x){x.click();return true;}return false;});if(ok){console.log("clicked at",i);break;}}
 await new Promise(r=>setTimeout(r,9000));
+if(process.env.SCROLL){await p.evaluate(()=>{const h=[...document.querySelectorAll("h2,h3")].find(e=>/upcoming shows|shows/i.test(e.textContent||""));(h||document.body).scrollIntoView({block:"start"});});await new Promise(r=>setTimeout(r,1500));}
 await p.screenshot({path:OUT});console.log("saved",OUT);await b.close();

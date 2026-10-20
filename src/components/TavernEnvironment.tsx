@@ -823,7 +823,7 @@ export default function TavernEnvironment() {
 
       {/* CANDLES on the band's table and about the room */}
       <Candle position={[-0.5, 0.57, 1.7]} />
-      <Candle position={[0.5, 0.57, 1.9]} />
+      <Candle position={[0.5, 0.57, 1.9]} light={false} />
       <Candle position={[-3.2, 1.21, -3.2]} light={false} />
       <Candle position={[2.0, 1.31, -3.4]} light={false} />
 
