@@ -15,7 +15,7 @@ import { Wood } from "./characters/materials";
 
 const SONG_ID = "angelic-frick";
 
-// Follows the painted reference board in /public/band/sheets/barmaid.png:
+// Follows the painted reference board in /public/band/members/Barmaid Character Reference.png:
 // chestnut hair piled under a frilled white cap, off-the-shoulder chemise
 // with puffed sleeves, laced leather corset, white apron over a torn dark
 // skirt, hip pouch, heeled boots. The head is cropped from that board.

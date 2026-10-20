@@ -4,7 +4,7 @@ import type { FigureLook } from "../components/characters/Figure";
 // Edit names, bios, instruments, colors, seating positions and the look of
 // each 3D figure here. `look` drives the procedural character kit in
 // src/components/characters/Figure.tsx and follows the painted character
-// sheets in /public/band/sheets. `look.face` is the member's painted head
+// sheets in /public/band/members. `look.face` is the member's painted head
 // cropped from that sheet (/public/band/Heads/*-head.png); the backdrop is
 // keyed out automatically and the head is wrapped onto the 3D skull.
 // `photo` is the full painted scene render used by the UI portraits.
