@@ -9,7 +9,7 @@ import type { FigureLook } from "../components/characters/Figure";
 // keyed out automatically and the head is wrapped onto the 3D skull.
 // `photo` is the full painted scene render used by the UI portraits.
 
-export type Instrument = "lute" | "fiddle" | "drum" | "flute" | "organ" | "bass";
+export type Instrument = "lute" | "fiddle" | "drum" | "flute" | "piano" | "bass";
 
 export type BandMember = {
   id: string;
@@ -98,9 +98,9 @@ export const bandMembers: BandMember[] = [
   {
     id: "bram",
     name: "Admiral Joan",
-    instrument: "Church Organ & Chain",
-    instrumentType: "organ",
-    bio: "Admiral Joan left the navy over a 'rhythmic disagreement.' He plays a cathedral organ with one hand, a length of anchor chain with the other, and keeps a flute on the console for emergencies.",
+    instrument: "Upright Piano & Chain",
+    instrumentType: "piano",
+    bio: "Admiral Joan left the navy over a 'rhythmic disagreement.' He hammers a battered old upright piano with one hand, a length of anchor chain with the other, and keeps a flute on the lid for emergencies.",
     color: "#1f2a4a", // navy surcoat
     hatColor: "#12888a",
     photo: "/band/renders/admiral.jpg",
@@ -110,7 +110,7 @@ export const bandMembers: BandMember[] = [
     look: {
       build: "broad",
       skin: "#dfae86",
-      // He sits side-on to the room at the organ, so his head is turned on
+      // He sits side-on to the room at the piano, so his head is turned on
       // the neck to look straight out at the audience (yaw cancels the
       // body rotation below).
       face: { url: "/band/Heads/admiral-head.png", back: "#1a120c", height: 0.5, yaw: Math.PI / 2 - 0.2 },
@@ -125,8 +125,8 @@ export const bandMembers: BandMember[] = [
       },
       legs: { hose: "#2a2d3a", boots: "#2a1a10", greaves: true },
     },
-    // Front right, in profile: he faces across the stage into the organ, so
-    // the audience sees the console and its pipes side-on. Nudged a touch
+    // Front right, in profile: he faces across the stage into the piano, so
+    // the audience sees the tall case and keyboard side-on. Nudged a touch
     // toward the room so the pose reads as a player, not a silhouette.
     position: [2.2, 0, 0.6],
     rotation: [0, -Math.PI / 2 + 0.2, 0],

@@ -70,8 +70,8 @@ export default function BandMember({ member, index }: Props) {
       // arms move rhythmically (instrument-appropriate)
       if (leftArm.current && rightArm.current) {
         const armSwing = Math.sin(beat + offset) * (0.4 + energy * 0.5) * motion;
-        if (member.instrumentType === "drum" || member.instrumentType === "organ") {
-          // alternating hands: drum taps / organ keys + chain rattles
+        if (member.instrumentType === "drum" || member.instrumentType === "piano") {
+          // alternating hands: drum taps / piano keys + chain rattles
           leftArm.current.rotation.x = -0.6 - Math.abs(Math.sin(beat + offset)) * 0.5 * motion;
           rightArm.current.rotation.x = -0.6 - Math.abs(Math.sin(beat + offset + 1.5)) * 0.5 * motion;
         } else if (member.instrumentType === "fiddle") {
@@ -136,12 +136,12 @@ export default function BandMember({ member, index }: Props) {
         armPose={{ leftElbow: -1.25, rightElbow: -1.25 }}
       />
 
-      {/* Instrument held in front. The organ is furniture, not part of the
+      {/* Instrument held in front. The piano is furniture, not part of the
           player — swallow its pointer events so only Joan himself is
-          clickable, not the whole console. */}
+          clickable, not the whole case. */}
       <group
         position={[0, instrY, instrZ]}
-        {...(member.instrumentType === "organ"
+        {...(member.instrumentType === "piano"
           ? {
               onClick: (e: { stopPropagation: () => void }) => e.stopPropagation(),
               onPointerOver: (e: { stopPropagation: () => void }) => e.stopPropagation(),

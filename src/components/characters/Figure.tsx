@@ -57,7 +57,7 @@ export type FigureLook = {
   // Real face: transparent PNG cutout of a head, wrapped onto the skull.
   // yaw turns the whole head on the neck (radians about Y, positive = to
   // the figure's left) for someone whose body faces away from the room,
-  // like Joan side-on at his organ, but whose face the audience should see.
+  // like Joan side-on at his piano, but whose face the audience should see.
   face?: { url: string; back?: string; height?: number; keyTolerance?: number; yaw?: number };
 };
 

@@ -1,7 +1,9 @@
-import { useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { Group } from "three";
+import { Matrix4 } from "three";
+import type { Group, InstancedMesh } from "three";
 import type { Instrument as InstrumentType } from "../data/bandMembers";
+import { Cloth, Metal, Wood } from "./characters/materials";
 
 // INSTRUMENT
 // Procedural low-poly instruments built from primitives.
@@ -19,7 +21,7 @@ export default function Instrument({ type, playing, intensity }: Props) {
 
   useFrame((state) => {
     if (!ref.current) return;
-    if (type === "organ") return; // furniture doesn't rock
+    if (type === "piano") return; // furniture doesn't rock
     const t = state.clock.elapsedTime;
     if (playing) {
       // subtle instrument motion while playing
@@ -139,71 +141,134 @@ function renderInstrument(type: InstrumentType) {
           </mesh>
         </group>
       );
-    case "organ":
+    case "piano":
       return (
-        // Cathedral organ console in front of the player. Joan sits side-on
-        // to the room (see bandMembers.ts), so the audience sees the console
-        // and pipes in profile; local +x is the audience side.
+        // Old upright piano in front of the player. Joan sits side-on to the
+        // room (see bandMembers.ts), so the audience sees the tall case and
+        // the protruding keyboard in profile; local +x is the audience side,
+        // -z is the player. Floor is y = 0.
         <group position={[0, -0.55, 0.55]}>
-          {/* console body */}
-          <mesh position={[0, 0.5, 0.1]}>
-            <boxGeometry args={[1.5, 1.0, 0.5]} />
-            <meshStandardMaterial color="#3d2817" roughness={0.7} />
+          {/* plinth / toe rail */}
+          <mesh position={[0, 0.04, 0.14]}>
+            <boxGeometry args={[1.52, 0.08, 0.44]} />
+            <Wood base="#4a3018" dark="#1a0e04" planks={1} />
           </mesh>
-          {/* keyboard shelf facing the player */}
-          <mesh position={[0, 0.66, -0.2]}>
-            <boxGeometry args={[1.05, 0.05, 0.16]} />
-            <meshStandardMaterial color="#e8dcc0" roughness={0.5} />
+          {/* lower case: kneeboard between the legs */}
+          <mesh position={[0, 0.35, 0.15]}>
+            <boxGeometry args={[1.5, 0.54, 0.4]} />
+            <Wood base="#5a3b20" dark="#1f1206" planks={2} />
           </mesh>
-          {/* black keys */}
-          {[-0.4, -0.28, -0.16, -0.04, 0.08, 0.2, 0.32].map((x, i) => (
-            <mesh key={i} position={[x, 0.695, -0.22]}>
-              <boxGeometry args={[0.05, 0.02, 0.08]} />
-              <meshStandardMaterial color="#1a120a" />
+          {/* front legs / pilasters under the key cheeks */}
+          {[-0.68, 0.68].map((x) => (
+            <mesh key={x} position={[x, 0.31, -0.1]}>
+              <boxGeometry args={[0.14, 0.62, 0.3]} />
+              <Wood base="#5a3b20" dark="#1f1206" planks={1} />
             </mesh>
           ))}
-          {/* crown rail */}
-          <mesh position={[0, 1.05, 0.15]}>
-            <boxGeometry args={[1.45, 0.1, 0.4]} />
-            <meshStandardMaterial color="#2a1c10" roughness={0.7} />
+          {/* keybed, jutting out toward the player */}
+          <mesh position={[0, 0.66, -0.11]}>
+            <boxGeometry args={[1.5, 0.08, 0.32]} />
+            <Wood base="#5a3b20" dark="#1f1206" planks={2} />
           </mesh>
-          {/* pipe crown — tallest in the center, church style */}
-          {(
-            [
-              [-0.6, 0.8],
-              [-0.45, 1.05],
-              [-0.3, 1.3],
-              [-0.15, 1.55],
-              [0, 1.8],
-              [0.15, 1.55],
-              [0.3, 1.3],
-              [0.45, 1.05],
-              [0.6, 0.8],
-            ] as const
-          ).map(([x, h], i) => (
-            <mesh key={i} position={[x, 1.1 + h / 2, 0.15]}>
-              <cylinderGeometry args={[0.055, 0.055, h, 10]} />
-              <meshStandardMaterial color="#c8a24b" metalness={0.65} roughness={0.3} />
+          {/* key cheeks framing the keyboard */}
+          {[-0.69, 0.69].map((x) => (
+            <mesh key={x} position={[x, 0.73, -0.11]}>
+              <boxGeometry args={[0.12, 0.06, 0.32]} />
+              <Wood base="#5a3b20" dark="#1f1206" planks={1} />
+            </mesh>
+          ))}
+          {/* yellowed ivory keys */}
+          <mesh position={[0, 0.7125, -0.135]}>
+            <boxGeometry args={[1.26, 0.025, 0.25]} />
+            <meshStandardMaterial color="#e8dcc0" roughness={0.5} />
+          </mesh>
+          <BlackKeys keyWidth={1.26 / 28} octaves={4} y={0.735} z={-0.09} />
+          {/* fallboard, folded open against the upper panel */}
+          <mesh position={[0, 0.84, -0.07]} rotation={[-0.12, 0, 0]}>
+            <boxGeometry args={[1.3, 0.22, 0.03]} />
+            <Wood base="#5a3b20" dark="#1f1206" planks={1} />
+          </mesh>
+          {/* music ledge */}
+          <mesh position={[0, 0.96, -0.08]}>
+            <boxGeometry args={[1.3, 0.03, 0.08]} />
+            <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+          </mesh>
+          {/* upper case */}
+          <mesh position={[0, 1.03, 0.15]}>
+            <boxGeometry args={[1.5, 0.66, 0.4]} />
+            <Wood base="#5a3b20" dark="#1f1206" planks={2} />
+          </mesh>
+          {/* fretwork panels: faded silk behind carved slats */}
+          {[-0.36, 0.36].map((x) => (
+            <group key={x} position={[x, 1.14, -0.055]}>
+              <mesh>
+                <boxGeometry args={[0.5, 0.3, 0.02]} />
+                <Cloth color="#6a2226" />
+              </mesh>
+              {[-0.15, 0, 0.15].map((sx) => (
+                <mesh key={sx} position={[sx, 0, 0.012]}>
+                  <boxGeometry args={[0.04, 0.3, 0.02]} />
+                  <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+                </mesh>
+              ))}
+            </group>
+          ))}
+          {/* cornice moulding under the lid */}
+          <mesh position={[0, 1.33, -0.06]}>
+            <boxGeometry args={[1.5, 0.04, 0.03]} />
+            <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+          </mesh>
+          {/* top lid, slight overhang */}
+          <mesh position={[0, 1.385, 0.14]}>
+            <boxGeometry args={[1.56, 0.05, 0.46]} />
+            <Wood base="#5a3b20" dark="#1f1206" planks={2} />
+          </mesh>
+          {/* brass candle sconces either side of the music ledge */}
+          {[-0.52, 0.52].map((x) => (
+            <group key={x} position={[x, 1.02, -0.1]}>
+              <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.03]}>
+                <cylinderGeometry args={[0.01, 0.01, 0.1, 6]} />
+                <Metal color="#b8923a" roughness={0.35} metalness={0.85} />
+              </mesh>
+              <mesh position={[0, 0.015, -0.08]}>
+                <cylinderGeometry args={[0.035, 0.022, 0.03, 10]} />
+                <Metal color="#b8923a" roughness={0.35} metalness={0.85} />
+              </mesh>
+              <mesh position={[0, 0.09, -0.08]}>
+                <cylinderGeometry args={[0.016, 0.02, 0.12, 8]} />
+                <meshStandardMaterial color="#e8dcc0" roughness={0.6} />
+              </mesh>
+              <mesh position={[0, 0.19, -0.08]}>
+                <coneGeometry args={[0.02, 0.07, 8]} />
+                <meshBasicMaterial color="#ffce6b" />
+              </mesh>
+            </group>
+          ))}
+          {/* brass pedals */}
+          {[-0.07, 0.07].map((x) => (
+            <mesh key={x} position={[x, 0.08, -0.13]} rotation={[-0.3, 0, 0]}>
+              <boxGeometry args={[0.04, 0.015, 0.14]} />
+              <Metal color="#b8923a" roughness={0.35} metalness={0.85} />
             </mesh>
           ))}
           {/* THE CHAIN — anchor chain percussion, hung off the audience end
-              of the console so it stays in view */}
-          <mesh position={[0.8, 1.02, -0.05]}>
+              of the case so it stays in view */}
+          <mesh position={[0.78, 1.25, 0.05]}>
             <boxGeometry args={[0.06, 0.05, 0.06]} />
-            <meshStandardMaterial color="#2a1c10" />
+            <Wood base="#4a3018" dark="#1a0e04" planks={1} />
           </mesh>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <mesh
               key={i}
-              position={[0.8, 0.94 - i * 0.085, -0.05]}
+              position={[0.78, 1.17 - i * 0.085, 0.05]}
               rotation={[i % 2 ? Math.PI / 2 : 0, 0, 0]}
             >
               <torusGeometry args={[0.034, 0.012, 6, 10]} />
-              <meshStandardMaterial color="#8a8578" metalness={0.8} roughness={0.4} />
+              <Metal color="#8a8578" roughness={0.4} metalness={0.8} />
             </mesh>
           ))}
-          {/* spare flute resting on the console top — carved wood, per refs */}
-          <mesh position={[-0.38, 1.04, -0.1]} rotation={[0, -0.5, Math.PI / 2]}>
+          {/* spare flute resting on the lid — carved wood, per refs */}
+          <mesh position={[-0.38, 1.44, 0.1]} rotation={[0, -0.5, Math.PI / 2]}>
             <cylinderGeometry args={[0.025, 0.03, 0.6, 12]} />
             <meshStandardMaterial color="#7a4a26" roughness={0.6} />
           </mesh>
@@ -226,4 +291,37 @@ function renderInstrument(type: InstrumentType) {
         </group>
       );
   }
+}
+
+// Black keys as a single instanced mesh: five per octave (C# D# F# G# A#),
+// each sitting on the boundary between two white keys.
+function BlackKeys({ keyWidth, octaves, y, z }: { keyWidth: number; octaves: number; y: number; z: number }) {
+  const ref = useRef<InstancedMesh>(null);
+  const xs = useMemo(() => {
+    const out: number[] = [];
+    const octaveW = keyWidth * 7;
+    const startX = -(octaves * octaveW) / 2;
+    for (let o = 0; o < octaves; o++) {
+      for (const k of [1, 2, 4, 5, 6]) out.push(startX + o * octaveW + k * keyWidth);
+    }
+    return out;
+  }, [keyWidth, octaves]);
+
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const m = new Matrix4();
+    xs.forEach((x, i) => {
+      m.makeTranslation(x, 0, 0);
+      mesh.setMatrixAt(i, m);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [xs]);
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, xs.length]} position={[0, y, z]}>
+      <boxGeometry args={[keyWidth * 0.55, 0.02, 0.14]} />
+      <meshStandardMaterial color="#1a120a" roughness={0.5} />
+    </instancedMesh>
+  );
 }
