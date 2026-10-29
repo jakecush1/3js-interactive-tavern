@@ -6,6 +6,7 @@ import { getSong } from "../data/songs";
 import Figure, { Stool, useRig, type FigureLook } from "./characters/Figure";
 import { poseDance, poseStagger } from "./characters/animation";
 import { Metal, Wood } from "./characters/materials";
+import SongTrigger from "./SongTrigger";
 
 // BAR
 // A timber bar along the right wall: panelled counter, back shelves with
@@ -257,7 +258,9 @@ function Dancer({ position, rotation }: { position: [number, number, number]; ro
   });
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <Figure look={BALD_HAMMER} pose="standing" refs={rig} heldLeft={<Tankard position={[0, 0, 0]} />} />
+      <SongTrigger songId="boot-hole" label="Boot Hole">
+        <Figure look={BALD_HAMMER} pose="standing" refs={rig} heldLeft={<Tankard position={[0, 0, 0]} />} />
+      </SongTrigger>
     </group>
   );
 }
@@ -274,7 +277,9 @@ function Staggerer({ position, rotation, seed = 0 }: { position: [number, number
   });
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <Figure look={SOUSED} pose="standing" refs={rig} heldRight={<Tankard position={[0, 0, 0]} />} />
+      <SongTrigger songId="crashed-my-boat" label="Crashed my Boat">
+        <Figure look={SOUSED} pose="standing" refs={rig} heldRight={<Tankard position={[0, 0, 0]} />} />
+      </SongTrigger>
     </group>
   );
 }
