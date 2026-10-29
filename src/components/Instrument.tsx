@@ -143,9 +143,10 @@ function renderInstrument(type: InstrumentType) {
       );
     case "piano":
       return (
-        // Old upright piano in front of the player. Joan sits side-on to the
-        // room (see bandMembers.ts), so the audience sees the tall case and
-        // the protruding keyboard in profile; local +x is the audience side,
+        // Little spinet piano in front of the player — apartment-sized, the
+        // case barely taller than the keys. Joan sits side-on to the room (see
+        // bandMembers.ts), so the audience sees the case and the protruding
+        // keyboard in profile; local +x is the audience side,
         // -z is the player. Floor is y = 0.
         <group position={[0, -0.55, 0.55]}>
           {/* plinth / toe rail */}
@@ -184,52 +185,48 @@ function renderInstrument(type: InstrumentType) {
           </mesh>
           <BlackKeys keyWidth={1.26 / 28} octaves={4} y={0.735} z={-0.09} />
           {/* fallboard, folded open against the upper panel */}
-          <mesh position={[0, 0.84, -0.07]} rotation={[-0.12, 0, 0]}>
-            <boxGeometry args={[1.3, 0.22, 0.03]} />
+          <mesh position={[0, 0.8, -0.07]} rotation={[-0.12, 0, 0]}>
+            <boxGeometry args={[1.3, 0.12, 0.03]} />
             <Wood base="#5a3b20" dark="#1f1206" planks={1} />
           </mesh>
           {/* music ledge */}
-          <mesh position={[0, 0.96, -0.08]}>
+          <mesh position={[0, 0.865, -0.08]}>
             <boxGeometry args={[1.3, 0.03, 0.08]} />
             <Wood base="#4a3018" dark="#1a0e04" planks={1} />
           </mesh>
           {/* upper case */}
-          <mesh position={[0, 1.03, 0.15]}>
-            <boxGeometry args={[1.5, 0.66, 0.4]} />
+          <mesh position={[0, 0.83, 0.15]}>
+            <boxGeometry args={[1.5, 0.3, 0.4]} />
             <Wood base="#5a3b20" dark="#1f1206" planks={2} />
           </mesh>
           {/* fretwork panels: faded silk behind carved slats */}
           {[-0.36, 0.36].map((x) => (
-            <group key={x} position={[x, 1.14, -0.055]}>
+            <group key={x} position={[x, 0.92, -0.055]}>
               <mesh>
-                <boxGeometry args={[0.5, 0.3, 0.02]} />
+                <boxGeometry args={[0.5, 0.08, 0.02]} />
                 <Cloth color="#6a2226" />
               </mesh>
               {[-0.15, 0, 0.15].map((sx) => (
                 <mesh key={sx} position={[sx, 0, 0.012]}>
-                  <boxGeometry args={[0.04, 0.3, 0.02]} />
+                  <boxGeometry args={[0.04, 0.08, 0.02]} />
                   <Wood base="#4a3018" dark="#1a0e04" planks={1} />
                 </mesh>
               ))}
             </group>
           ))}
           {/* cornice moulding under the lid */}
-          <mesh position={[0, 1.33, -0.06]}>
+          <mesh position={[0, 0.965, -0.06]}>
             <boxGeometry args={[1.5, 0.04, 0.03]} />
             <Wood base="#4a3018" dark="#1a0e04" planks={1} />
           </mesh>
           {/* top lid, slight overhang */}
-          <mesh position={[0, 1.385, 0.14]}>
+          <mesh position={[0, 1.005, 0.14]}>
             <boxGeometry args={[1.56, 0.05, 0.46]} />
             <Wood base="#5a3b20" dark="#1f1206" planks={2} />
           </mesh>
-          {/* brass candle sconces either side of the music ledge */}
+          {/* brass candlesticks on the lid */}
           {[-0.52, 0.52].map((x) => (
-            <group key={x} position={[x, 1.02, -0.1]}>
-              <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.03]}>
-                <cylinderGeometry args={[0.01, 0.01, 0.1, 6]} />
-                <Metal color="#b8923a" roughness={0.35} metalness={0.85} />
-              </mesh>
+            <group key={x} position={[x, 1.03, 0.02]}>
               <mesh position={[0, 0.015, -0.08]}>
                 <cylinderGeometry args={[0.035, 0.022, 0.03, 10]} />
                 <Metal color="#b8923a" roughness={0.35} metalness={0.85} />
@@ -253,14 +250,14 @@ function renderInstrument(type: InstrumentType) {
           ))}
           {/* THE CHAIN — anchor chain percussion, hung off the audience end
               of the case so it stays in view */}
-          <mesh position={[0.78, 1.25, 0.05]}>
+          <mesh position={[0.78, 0.95, 0.05]}>
             <boxGeometry args={[0.06, 0.05, 0.06]} />
             <Wood base="#4a3018" dark="#1a0e04" planks={1} />
           </mesh>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <mesh
               key={i}
-              position={[0.78, 1.17 - i * 0.085, 0.05]}
+              position={[0.78, 0.87 - i * 0.085, 0.05]}
               rotation={[i % 2 ? Math.PI / 2 : 0, 0, 0]}
             >
               <torusGeometry args={[0.034, 0.012, 6, 10]} />
@@ -268,7 +265,7 @@ function renderInstrument(type: InstrumentType) {
             </mesh>
           ))}
           {/* spare flute resting on the lid — carved wood, per refs */}
-          <mesh position={[-0.38, 1.44, 0.1]} rotation={[0, -0.5, Math.PI / 2]}>
+          <mesh position={[-0.38, 1.06, 0.1]} rotation={[0, -0.5, Math.PI / 2]}>
             <cylinderGeometry args={[0.025, 0.03, 0.6, 12]} />
             <meshStandardMaterial color="#7a4a26" roughness={0.6} />
           </mesh>

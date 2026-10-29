@@ -126,9 +126,9 @@ export const bandMembers: BandMember[] = [
       legs: { hose: "#2a2d3a", boots: "#2a1a10", greaves: true },
     },
     // Front right, in profile: he faces across the stage into the piano, so
-    // the audience sees the tall case and keyboard side-on. Nudged a touch
-    // toward the room so the pose reads as a player, not a silhouette.
-    position: [2.2, 0, 0.6],
+    // the audience sees the tall case and keyboard side-on. Set a little
+    // back from the front row so the keg behind him has room.
+    position: [2.3, 0, 0.25],
     rotation: [0, -Math.PI / 2 + 0.2, 0],
   },
   {

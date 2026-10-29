@@ -1,5 +1,5 @@
 import { bandMembers } from "../../data/bandMembers";
-import { songs } from "../../data/songs";
+import { albums, songsByAlbum } from "../../data/songs";
 import { upcomingShows } from "../../data/shows";
 import { useGameStore } from "../../lib/useGameStore";
 import { CalendarDays, ChevronDown, Clock, MapPin, Ticket } from "lucide-react";
@@ -31,7 +31,7 @@ function InstagramGlyph({ size = 24 }: { size?: number }) {
   );
 }
 
-const INSTAGRAM_URL = "https://www.instagram.com/not_side_project/";
+const INSTAGRAM_URL = "https://www.instagram.com/sidepr0j/";
 
 export default function FooterOverlay() {
   const selectSong = useGameStore((s) => s.selectSong);
@@ -123,24 +123,45 @@ export default function FooterOverlay() {
                 ♪ The Repertoire
               </p>
               <h2 className="font-medieval gold-text text-3xl font-black mb-8">Songs</h2>
-              <div className="space-y-5">
-                {songs.map((s) => (
-                  <div
-                    key={s.id}
-                    className="parchment p-5 flex flex-col sm:flex-row sm:items-center gap-4"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-medieval text-tavern-candle text-lg font-bold leading-tight">
-                        {s.title}
+              <div className="space-y-10">
+                {albums.map((album) => (
+                  <div key={album.id}>
+                    <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 mb-4">
+                      <h3 className="font-medieval text-tavern-candle text-xl font-bold">
+                        {album.title}
+                        <span className="font-mono text-tavern-stone text-xs ml-2 tracking-widest">{album.year}</span>
                       </h3>
-                      <p className="text-tavern-stone text-sm mt-1">{s.description}</p>
+                      <a
+                        href={album.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[11px] uppercase tracking-[0.2em] text-tavern-cobalt hover:text-tavern-gold underline-offset-4 hover:underline"
+                      >
+                        On Bandcamp ↗
+                      </a>
                     </div>
-                    <button
-                      onClick={() => selectSong(s.id)}
-                      className="btn-tavern font-medieval text-sm px-5 py-2 uppercase shrink-0"
-                    >
-                      Play
-                    </button>
+                    <p className="text-tavern-stone text-sm italic mb-4">{album.blurb}</p>
+                    <div className="space-y-4">
+                      {songsByAlbum(album.id).map((s) => (
+                        <div
+                          key={s.id}
+                          className="parchment p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+                        >
+                          <div className="flex-1">
+                            <h4 className="font-medieval text-tavern-candle text-lg font-bold leading-tight">
+                              {s.title}
+                            </h4>
+                            <p className="text-tavern-stone text-sm mt-1">{s.description}</p>
+                          </div>
+                          <button
+                            onClick={() => selectSong(s.id)}
+                            className="btn-tavern font-medieval text-sm px-5 py-2 uppercase shrink-0"
+                          >
+                            Play
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -263,7 +284,7 @@ export default function FooterOverlay() {
                 >
                   <InstagramGlyph size={22} />
                   <span className="font-medieval text-sm uppercase tracking-wider">
-                    @not_side_project
+                    @sidepr0j
                   </span>
                 </a>
               </div>

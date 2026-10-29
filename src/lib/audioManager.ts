@@ -29,31 +29,11 @@ class AudioManager {
   }
 
   // Called after the user clicks "Enter the Tavern" (unlocks audio context).
+  // Songs are loaded the first time they are asked for (nineteen tracks is
+  // too much to pull down on arrival); only the ambient loop starts now.
   init() {
     if (this.initialized) return;
     this.initialized = true;
-
-    // Preload song howls
-    songs.forEach((song) => {
-      const howl = new Howl({
-        src: [song.file],
-        loop: false, // the set loops as a playlist (see onend), not one song on repeat
-        volume: 0,
-        html5: false, // Web Audio: fade()/crossfade works reliably (html5 fades stay stuck at 0)
-        onend: () => {
-          if (this.currentId === song.id) this.onSongEnd?.(song.id);
-        },
-        onloaderror: () => {
-          const t = this.tracks.get(song.id);
-          if (t) t.available = false;
-          console.warn(
-            `[audio] Missing or unplayable file for "${song.title}" (${song.file}). ` +
-              `UI and animations will continue without audio.`
-          );
-        },
-      });
-      this.tracks.set(song.id, { howl, available: true });
-    });
 
     // Ambient loop (optional)
     const ambientHowl = new Howl({
@@ -69,6 +49,34 @@ class AudioManager {
       },
     });
     this.ambient = { howl: ambientHowl, available: true };
+  }
+
+  // The howl for a song, created (and started loading) on first use.
+  private track(songId: string): LoadedHowl | undefined {
+    const existing = this.tracks.get(songId);
+    if (existing) return existing;
+    const song = songs.find((s) => s.id === songId);
+    if (!song) return undefined;
+    const howl = new Howl({
+      src: [song.file],
+      loop: false, // the set loops as a playlist (see onend), not one song on repeat
+      volume: 0,
+      html5: false, // Web Audio: fade()/crossfade works reliably (html5 fades stay stuck at 0)
+      onend: () => {
+        if (this.currentId === song.id) this.onSongEnd?.(song.id);
+      },
+      onloaderror: () => {
+        const t = this.tracks.get(song.id);
+        if (t) t.available = false;
+        console.warn(
+          `[audio] Missing or unplayable file for "${song.title}" (${song.file}). ` +
+            `UI and animations will continue without audio.`
+        );
+      },
+    });
+    const entry = { howl, available: true };
+    this.tracks.set(song.id, entry);
+    return entry;
   }
 
   startAmbient() {
@@ -95,9 +103,9 @@ class AudioManager {
     }
 
     this.currentId = songId;
-    const next = this.tracks.get(songId);
+    const next = this.track(songId);
     if (!next || !next.available) {
-      // Missing file — already warned at load. Keep UI state going.
+      // Missing file — warned when it failed to load. Keep UI state going.
       return;
     }
 

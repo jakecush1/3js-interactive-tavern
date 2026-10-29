@@ -21,7 +21,7 @@ Open http://localhost:5173 and click **Enter the Tavern**.
 
 ## Audio
 
-MP3s live in `/public/audio/` and are mapped to songs in `src/data/songs.ts`. Missing files don't crash the app — it logs a warning and keeps running.
+MP3s live in `/public/audio/` and are mapped to songs in `src/data/songs.ts`, grouped into the three Bandcamp albums (The New Normal, Demos, Live at Michelle and Everette's). Tracks load on first play, not up front. Missing files don't crash the app — it logs a warning and keeps running.
 
 ## Customizing
 

@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
-import type { Group } from "three";
+import { LatheGeometry, Vector2, type Group } from "three";
+import { woodTexture } from "../lib/textures";
+import { Metal, Wood } from "./characters/materials";
 import type { ClickableObject as ClickableObjectData } from "../data/clickableObjects";
 import { useGameStore } from "../lib/useGameStore";
 import { glowAnchors } from "../lib/glow";
@@ -174,75 +176,7 @@ function renderKind(
         </group>
       );
     case "keg":
-      // Giant old-style mead keg on a rustic side table (origin at floor)
-      return (
-        <group>
-          {/* table leg + top */}
-          <mesh position={[0, 0.25, 0]}>
-            <cylinderGeometry args={[0.09, 0.13, 0.5, 8]} />
-            <meshStandardMaterial color="#3d2817" roughness={0.8} />
-          </mesh>
-          <mesh position={[0, 0.53, 0]} receiveShadow>
-            <cylinderGeometry args={[0.52, 0.52, 0.07, 16]} />
-            <meshStandardMaterial color="#5c3d22" roughness={0.7} />
-          </mesh>
-          {/* keg body — dark aged oak, bulged staves */}
-          <mesh position={[0, 0.92, 0]}>
-            <cylinderGeometry args={[0.26, 0.3, 0.68, 14]} />
-            <meshStandardMaterial
-              color="#4a2f16"
-              roughness={0.9}
-              emissive={glowColor}
-              emissiveIntensity={glow ? 0.35 : 0}
-            />
-          </mesh>
-          {/* stave seams — ridges around the barrel, leaning with the taper */}
-          {Array.from({ length: 14 }, (_, i) => {
-            const a = (i / 14) * Math.PI * 2;
-            return (
-              <group key={i} rotation={[0, -a, 0]}>
-                <mesh position={[0.285, 0.92, 0]} rotation={[0, 0, 0.06]}>
-                  <boxGeometry args={[0.02, 0.64, 0.02]} />
-                  <meshStandardMaterial color="#33200e" roughness={0.95} />
-                </mesh>
-              </group>
-            );
-          })}
-          {/* iron hoops */}
-          {[
-            [0.66, 0.295],
-            [0.92, 0.28],
-            [1.18, 0.265],
-          ].map(([y, r], i) => (
-            <mesh key={i} position={[0, y, 0]}>
-              <torusGeometry args={[r, 0.018, 8, 24]} />
-              <meshStandardMaterial color="#3a3a3a" metalness={0.6} roughness={0.5} />
-            </mesh>
-          ))}
-          {/* lid + bung */}
-          <mesh position={[0, 1.265, 0]}>
-            <cylinderGeometry args={[0.25, 0.25, 0.03, 14]} />
-            <meshStandardMaterial color="#3a2410" roughness={0.85} />
-          </mesh>
-          <mesh position={[0, 1.3, 0]}>
-            <cylinderGeometry args={[0.04, 0.05, 0.05, 8]} />
-            <meshStandardMaterial color="#3d2410" />
-          </mesh>
-          {/* glowing brass spigot facing the room */}
-          <mesh position={[0, 0.72, 0.3]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.16, 8]} />
-            <meshStandardMaterial
-              color="#c9a24b"
-              emissive={glowColor}
-              emissiveIntensity={emissiveIntensity}
-            />
-          </mesh>
-          <mesh position={[0, 0.79, 0.36]}>
-            <boxGeometry args={[0.03, 0.08, 0.03]} />
-            <meshStandardMaterial color="#c9a24b" metalness={0.5} roughness={0.4} />
-          </mesh>
-        </group>
-      );
+      return <Keg glowColor={glowColor} glow={glow} emissiveIntensity={emissiveIntensity} />;
     case "coinbag":
       // Bulging leather pouch spilling gold coins (origin on tabletop)
       return (
@@ -341,4 +275,133 @@ function renderKind(
         </mesh>
       );
   }
+}
+
+// MEAD KEG
+// A coopered oak barrel standing on a stout trestle: bulged staves turned
+// from a lathe profile, four pitted iron hoops, a lid with a bung and a
+// mallet, a brass tap at the bottom with a bowl under the drip, and a full
+// tankard waiting on the lid. Origin at the floor.
+function Keg({ glowColor, glow, emissiveIntensity }: { glowColor: string; glow: boolean; emissiveIntensity: number }) {
+  const barrel = useMemo(() => {
+    const prof: [number, number][] = [
+      [0.0, 0], [0.24, 0], [0.26, 0.02], [0.285, 0.12], [0.305, 0.28], [0.31, 0.42], [0.305, 0.56], [0.285, 0.72], [0.26, 0.82], [0.24, 0.84], [0.0, 0.84],
+    ];
+    return new LatheGeometry(prof.map(([x, y]) => new Vector2(x, y)), 20);
+  }, []);
+  const staves = useMemo(() => woodTexture({ base: "#5a3a1d", dark: "#1a0e04", planks: 10, repeat: [1, 1] }), []);
+  const hoops: [number, number][] = [
+    [0.09, 0.282],
+    [0.3, 0.306],
+    [0.56, 0.306],
+    [0.76, 0.28],
+  ];
+  const standY = 0.36;
+  return (
+    <group>
+      {/* trestle stand: two slabs on angled legs with a stretcher */}
+      {[-0.22, 0.22].map((z) => (
+        <group key={z} position={[0, 0, z]}>
+          <mesh position={[0, standY - 0.035, 0]}>
+            <boxGeometry args={[0.78, 0.07, 0.12]} />
+            <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+          </mesh>
+          {[-0.3, 0.3].map((x) => (
+            <mesh key={x} position={[x, (standY - 0.07) / 2, 0]} rotation={[0, 0, x > 0 ? -0.14 : 0.14]}>
+              <boxGeometry args={[0.07, standY - 0.07, 0.1]} />
+              <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      <mesh position={[0, 0.12, 0]}>
+        <boxGeometry args={[0.5, 0.05, 0.5]} />
+        <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+      </mesh>
+      {/* the barrel */}
+      <group position={[0, standY, 0]}>
+        <mesh geometry={barrel} castShadow>
+          <meshStandardMaterial map={staves} bumpMap={staves} bumpScale={0.8} roughness={0.85} emissive={glowColor} emissiveIntensity={glow ? 0.3 : 0} />
+        </mesh>
+        {/* stave seams */}
+        {Array.from({ length: 16 }, (_, i) => {
+          const a = (i / 16) * Math.PI * 2;
+          return (
+            <mesh key={i} position={[Math.cos(a) * 0.3, 0.42, Math.sin(a) * 0.3]} rotation={[0, -a, 0]}>
+              <boxGeometry args={[0.012, 0.7, 0.014]} />
+              <meshStandardMaterial color="#2a1808" roughness={0.95} />
+            </mesh>
+          );
+        })}
+        {/* iron hoops, riveted */}
+        {hoops.map(([y, r], i) => (
+          <group key={i} position={[0, y, 0]}>
+            <mesh>
+              <torusGeometry args={[r + 0.012, 0.016, 8, 32]} />
+              <Metal color="#33312e" roughness={0.65} metalness={0.6} />
+            </mesh>
+            {[0, 1, 2, 3].map((k) => (
+              <mesh key={k} position={[Math.cos(k * 1.57 + 0.4) * (r + 0.026), 0, Math.sin(k * 1.57 + 0.4) * (r + 0.026)]}>
+                <sphereGeometry args={[0.008, 6, 6]} />
+                <Metal color="#55514a" roughness={0.5} metalness={0.7} />
+              </mesh>
+            ))}
+          </group>
+        ))}
+        {/* lid: planked head with a bung and a mallet left on it */}
+        <mesh position={[0, 0.845, 0]}>
+          <cylinderGeometry args={[0.235, 0.235, 0.02, 20]} />
+          <Wood base="#4e3118" dark="#1a0e04" planks={5} />
+        </mesh>
+        <mesh position={[0.05, 0.875, -0.03]}>
+          <cylinderGeometry args={[0.03, 0.04, 0.04, 8]} />
+          <Wood base="#3a2410" dark="#1a0e04" planks={1} />
+        </mesh>
+        <group position={[-0.1, 0.87, 0.08]} rotation={[0, 0.6, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.22, 6]} />
+            <Wood base="#6a4a26" dark="#2a1708" planks={1} />
+          </mesh>
+          <mesh position={[0.1, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.03, 0.03, 0.07, 8]} />
+            <Wood base="#4a3018" dark="#1a0e04" planks={1} />
+          </mesh>
+        </group>
+        {/* full tankard on the lid */}
+        <group position={[0.1, 0.855, 0.1]}>
+          <mesh position={[0, 0.07, 0]}>
+            <cylinderGeometry args={[0.045, 0.055, 0.14, 12]} />
+            <Wood base="#8a6a3e" dark="#2a1a08" planks={6} />
+          </mesh>
+          <mesh position={[0, 0.145, 0]} scale={[1, 0.5, 1]}>
+            <sphereGeometry args={[0.048, 10, 8]} />
+            <meshStandardMaterial color="#f0ead8" roughness={0.9} />
+          </mesh>
+          <mesh position={[0.058, 0.07, 0]}>
+            <torusGeometry args={[0.03, 0.009, 6, 12, Math.PI]} />
+            <meshStandardMaterial color="#5a3a1c" roughness={0.6} />
+          </mesh>
+        </group>
+        {/* brass tap at the front, glowing when hovered, with a bowl under the drip */}
+        <group position={[0, 0.13, 0.26]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.07]}>
+            <cylinderGeometry args={[0.022, 0.026, 0.16, 10]} />
+            <meshStandardMaterial color="#c9a24b" metalness={0.7} roughness={0.35} emissive={glowColor} emissiveIntensity={emissiveIntensity} />
+          </mesh>
+          <mesh position={[0, -0.05, 0.14]} rotation={[0.3, 0, 0]}>
+            <cylinderGeometry args={[0.012, 0.016, 0.07, 8]} />
+            <meshStandardMaterial color="#c9a24b" metalness={0.7} roughness={0.35} emissive={glowColor} emissiveIntensity={emissiveIntensity} />
+          </mesh>
+          <mesh position={[0, 0.045, 0.1]} rotation={[0, 0, 0.4]}>
+            <boxGeometry args={[0.07, 0.016, 0.02]} />
+            <meshStandardMaterial color="#c9a24b" metalness={0.7} roughness={0.35} />
+          </mesh>
+        </group>
+      </group>
+      <mesh position={[0, standY - 0.05, 0.42]}>
+        <cylinderGeometry args={[0.07, 0.05, 0.05, 12, 1, true]} />
+        <meshStandardMaterial color="#8c8f96" metalness={0.6} roughness={0.5} side={2} />
+      </mesh>
+    </group>
+  );
 }

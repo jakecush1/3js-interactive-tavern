@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "../../lib/useGameStore";
 import { audioManager } from "../../lib/audioManager";
-import { songs, getSong } from "../../data/songs";
+import { albums, songs, songsByAlbum, getSong } from "../../data/songs";
 import { MOBILE_QUERY } from "../../lib/useMedia";
 import { Play, Pause, SkipForward, Music, ChevronUp, ChevronDown } from "lucide-react";
 
@@ -144,34 +144,41 @@ export default function SongPanel() {
 
         {/* Song list */}
         {!collapsed && (
-          <div className="border-t-2 border-tavern-shadow max-h-40 md:max-h-44 overflow-y-auto tavern-scroll">
-            {songs.map((s) => {
-              const active = s.id === currentSongId;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => selectSong(s.id)}
-                  className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 transition-colors border-l-4 ${
-                    active
-                      ? "bg-tavern-gold/25 border-tavern-cobalt"
-                      : "border-transparent hover:bg-tavern-gold/10 hover:border-tavern-velvet"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 shrink-0 ${
-                      active && isPlaying ? "bg-tavern-cobalt animate-pulse" : "bg-tavern-candle/30"
-                    }`}
-                  />
-                  <span
-                    className={`text-sm truncate ${
-                      active ? "text-tavern-candle font-medium" : "text-tavern-candle/70"
-                    }`}
-                  >
-                    {s.title}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="border-t-2 border-tavern-shadow max-h-44 md:max-h-56 overflow-y-auto tavern-scroll">
+            {albums.map((album) => (
+              <div key={album.id}>
+                <p className="px-4 pt-2.5 pb-1 font-mono text-[9px] uppercase tracking-[0.25em] text-tavern-cobalt/80 border-b border-tavern-shadow/30">
+                  {album.title} · {album.year}
+                </p>
+                {songsByAlbum(album.id).map((s) => {
+                  const active = s.id === currentSongId;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => selectSong(s.id)}
+                      className={`w-full text-left px-4 py-2 flex items-center gap-2.5 transition-colors border-l-4 ${
+                        active
+                          ? "bg-tavern-gold/25 border-tavern-cobalt"
+                          : "border-transparent hover:bg-tavern-gold/10 hover:border-tavern-velvet"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 shrink-0 ${
+                          active && isPlaying ? "bg-tavern-cobalt animate-pulse" : "bg-tavern-candle/30"
+                        }`}
+                      />
+                      <span
+                        className={`text-sm truncate ${
+                          active ? "text-tavern-candle font-medium" : "text-tavern-candle/70"
+                        }`}
+                      >
+                        {s.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>
