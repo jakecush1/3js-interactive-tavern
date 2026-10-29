@@ -229,3 +229,105 @@ export function poseIdle(r: FigureRefs, t: number, seed = 0) {
   rot(r.head, 0.02 * br, 0.1 * Math.sin(t * 0.4 + seed), 0.02 * shift);
   rot(r.skirt, 0, 0, 0);
 }
+
+// ---------------------------------------------------------------------------
+// MUSICIAN
+// A seated player. `beat` is the song phase in radians (π per beat, so the
+// slow sways run on sin(beat) and the per-beat hits on sin(2·beat));
+// `energy` scales everything from a faint idle fidget (≈0.2) up to a rowdy
+// tune (1). The fretting / bowing / plucking / hammering hands are
+// instrument-specific; the body rock, head nod and foot tap are shared.
+
+export type InstrumentKind = "lute" | "fiddle" | "drum" | "flute" | "piano" | "bass";
+
+export type MusicianOptions = {
+  instrument: InstrumentKind;
+  beat: number;
+  energy?: number;
+  seed?: number;
+  t?: number; // clock, for breathing that does not follow the beat
+};
+
+export function poseMusician(r: FigureRefs, o: MusicianOptions) {
+  const e = o.energy ?? 1;
+  const p = o.seed ?? 0;
+  const b = o.beat + p;
+  const t = (o.t ?? 0) + p;
+  const slow = Math.sin(b * 0.5);
+  const nod = Math.sin(b);
+  const hit = Math.sin(b * 2);
+  const breath = Math.sin(t * 1.3);
+
+  // body: rocks forward on the beat, sways a little side to side
+  move(r.pelvis, 0, 0.012 * Math.abs(nod) * e, 0);
+  rot(r.pelvis, 0, 0.02 * slow * e, 0.02 * slow * e);
+  rot(r.torso, 0.03 + 0.012 * breath + 0.05 * nod * e, 0.05 * slow * e, 0.04 * slow * e);
+  rot(r.head, 0.1 * nod * e + 0.015 * breath, 0.08 * Math.sin(b * 0.25) * e, 0.04 * slow * e);
+
+  // feet: right toe taps the beat, left heel lifts on the off-beat
+  rot(r.rightFoot, -0.3 * pos(nod) * e, 0, 0);
+  rot(r.leftFoot, 0.08 * pos(-nod) * e, 0, 0);
+
+  switch (o.instrument) {
+    case "lute": {
+      // left hand up the neck, shifting between frets; right hand strums
+      // down and up across the strings every beat
+      rot(r.leftArm, -0.9 + 0.05 * slow * e, 0.2, -0.45);
+      rot(r.leftForearm, -1.7 + 0.1 * slow * e, 0, 0);
+      rot(r.rightArm, -0.55 + 0.04 * nod * e, 0, 0.25);
+      rot(r.rightForearm, -1.35 + 0.28 * hit * e, 0, 0.05 * hit * e);
+      break;
+    }
+    case "fiddle": {
+      // chin on the rest, head tilted to the left shoulder; left hand holds
+      // the neck up by the face; the bow arm saws from the elbow
+      const saw = Math.sin(b * 2) * e;
+      rot(r.leftArm, -1.15 + 0.03 * nod * e, 0.3, -0.75);
+      rot(r.leftForearm, -2.2 + 0.06 * nod * e, 0, 0);
+      rot(r.rightArm, -0.75 + 0.1 * saw, 0.1, 0.55);
+      rot(r.rightForearm, -1.1 + 0.5 * saw, 0, 0);
+      rot(r.head, 0.06 + 0.06 * nod * e, -0.1, 0.28 + 0.03 * slow * e);
+      break;
+    }
+    case "bass": {
+      // the bass stands at his right: left hand reaches across and up the
+      // neck, walking between positions; right hand plucks at the waist
+      const pluck = Math.sin(b * 2) * e;
+      rot(r.leftArm, -1.25 + 0.08 * slow * e, 0.5, 0.35);
+      rot(r.leftForearm, -1.1 + 0.15 * slow * e, 0, 0);
+      rot(r.rightArm, -0.5 + 0.05 * nod * e, 0, 0.55);
+      rot(r.rightForearm, -1.5 + 0.25 * pluck, 0.1 * pluck, 0);
+      rot(r.torso, 0.03 + 0.012 * breath + 0.05 * nod * e, 0.05 * slow * e, 0.08 + 0.04 * slow * e);
+      break;
+    }
+    case "piano": {
+      // both hands over the keys, drifting along the keyboard; the right
+      // arm lifts and comes down with the chain on every other beat; the
+      // left foot works the pedal
+      const slam = pos(Math.sin(b + Math.PI)) * e;
+      const run = pos(nod) * e;
+      rot(r.leftArm, -0.75 + 0.1 * slow * e, 0.15 * Math.sin(b * 0.25) * e, -0.15);
+      rot(r.leftForearm, -1.1 + 0.2 * run, 0, 0);
+      rot(r.rightArm, -0.8 - 0.35 * slam, 0, 0.25);
+      rot(r.rightForearm, -1.0 + 0.35 * slam, 0, 0);
+      rot(r.leftFoot, 0.15 * pos(slow) * e, 0, 0);
+      break;
+    }
+    case "drum": {
+      const l = pos(Math.sin(b)) * e;
+      const rr = pos(Math.sin(b + Math.PI)) * e;
+      rot(r.leftArm, -0.6 - 0.45 * l, 0, -0.3);
+      rot(r.leftForearm, -1.1 + 0.3 * l, 0, 0);
+      rot(r.rightArm, -0.6 - 0.45 * rr, 0, 0.3);
+      rot(r.rightForearm, -1.1 + 0.3 * rr, 0, 0);
+      break;
+    }
+    case "flute": {
+      rot(r.leftArm, -1.2 + 0.03 * nod * e, 0.4, 0.2);
+      rot(r.leftForearm, -2.1, 0, 0);
+      rot(r.rightArm, -1.0 + 0.03 * nod * e, -0.2, 0.6);
+      rot(r.rightForearm, -1.9, 0, 0);
+      break;
+    }
+  }
+}

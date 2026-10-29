@@ -7,6 +7,7 @@ p.on("pageerror", e => console.log("[pageerror]", e.message));
 p.on("console", m => { const t = m.text(); if (/error|Error/.test(t) && !/deprecated/.test(t)) console.log("[c]", t.slice(0, 300)); });
 await p.goto("http://localhost:5174/" + (HASH || ""), { waitUntil: "load", timeout: 90000 });
 for (let i = 0; i < 20; i++) { await new Promise(r => setTimeout(r, 500)); const ok = await p.evaluate(() => { const x = [...document.querySelectorAll("button")].find(b => /enter the tavern/i.test(b.textContent || "")); if (x) { x.click(); return true; } return false; }); if (ok) break; }
+if (process.env.PLAY) { await new Promise(r => setTimeout(r, 6000)); await p.evaluate(() => { const x = [...document.querySelectorAll("button,li")].find(b => /serfs and wenches/i.test(b.textContent || "")); if (x) x.click(); }); console.log("play clicked"); }
 const waits = (WAIT || "9").split(",").map(Number);
 let elapsed = 0;
 for (let i = 0; i < waits.length; i++) {
