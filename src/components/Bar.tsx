@@ -2,7 +2,9 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { useGameStore } from "../lib/useGameStore";
-import Figure, { Stool, type FigureLook } from "./characters/Figure";
+import { getSong } from "../data/songs";
+import Figure, { Stool, useRig, type FigureLook } from "./characters/Figure";
+import { poseDance, poseStagger } from "./characters/animation";
 import { Metal, Wood } from "./characters/materials";
 
 // BAR
@@ -185,6 +187,23 @@ const SCRUFF: FigureLook = {
   blush: 0.3,
 };
 
+// Gaunt, grey, three sheets to the wind: scraggly hair under a slouching
+// cap, stubble, a long red nose, a faded tunic coming untucked, and a
+// tankard he has not put down all night.
+const SOUSED: FigureLook = {
+  build: "slim",
+  skin: "#d9a98a",
+  outfit: { kind: "tunic", color: "#5a4a3a", accent: "#3a2a1c", sleeves: "plain", sleeveColor: "#5a4a3a", collar: "flat", belt: true },
+  legs: { hose: "#3a3028", boots: "#2b2416" },
+  hair: { style: "scraggly", color: "#6a6058" },
+  hat: { kind: "cap", color: "#3a2e24" },
+  facialHair: "mustache-stubble",
+  expression: "sleepy",
+  nose: "red",
+  eyeColor: "#4a3a2a",
+  blush: 0.5,
+};
+
 function Barkeep() {
   const ref = useRef<Group>(null);
   const rightArm = useRef<Group>(null);
@@ -222,34 +241,40 @@ function Barkeep() {
   );
 }
 
-function BaldHammer({ position, phase }: { position: [number, number, number]; phase: number }) {
-  const ref = useRef<Group>(null);
-  const rightArm = useRef<Group>(null);
-  const head = useRef<Group>(null);
+// Up off his stool and dancing — a bouncing, hip-swinging samba in time
+// with whatever the band is playing (and to a tune in his head when they
+// are not), tankard still in hand.
+function Dancer({ position, rotation }: { position: [number, number, number]; rotation: number }) {
+  const rig = useRig();
   const reducedMotion = useGameStore((s) => s.reducedMotion);
+  const isPlaying = useGameStore((s) => s.isPlaying);
+  const currentSongId = useGameStore((s) => s.currentSongId);
+  const song = getSong(currentSongId);
+  const bpm = isPlaying && song ? song.bpm : 96;
   useFrame((state) => {
-    if (!ref.current || reducedMotion) return;
-    const t = state.clock.elapsedTime;
-    const swig = Math.pow(Math.max(0, Math.sin(t * 0.55 + phase)), 3);
-    ref.current.rotation.z = Math.sin(t * 0.5 + phase) * 0.18 + Math.sin(t * 1.9 + phase) * 0.04;
-    if (rightArm.current) rightArm.current.rotation.z = -2.4 + swig * 1.3;
-    if (head.current) {
-      head.current.rotation.x = -0.27 - swig * 0.45;
-      head.current.rotation.y = Math.sin(t * 0.7 + phase) * 0.4;
-    }
+    const t = reducedMotion ? 2.3 : state.clock.elapsedTime;
+    poseDance(rig, t, { bpm, energy: isPlaying ? 1 : 0.6, drunk: 0.7 });
   });
   return (
-    <group position={position} rotation={[0, Math.PI / 2, 0]}>
-      <Stool seatY={0.62} r={0.21} />
-      <group ref={ref} position={[0, 0.22, 0]}>
-        <Figure
-          look={BALD_HAMMER}
-          pose="seated"
-          refs={{ rightArm, head }}
-          armPose={{ left: [-1.1, 0, 0.3], leftElbow: -1.0, right: [-0.3, 0, -2.4], rightElbow: -0.5 }}
-          heldRight={<Tankard position={[0, 0, 0]} />}
-        />
-      </group>
+    <group position={position} rotation={[0, rotation, 0]}>
+      <Figure look={BALD_HAMMER} pose="standing" refs={rig} heldLeft={<Tankard position={[0, 0, 0]} />} />
+    </group>
+  );
+}
+
+// Still on his feet, technically: swaying in slow circles, knees soft,
+// arms out for balance, catching himself with a sideways step whenever the
+// room tilts too far, and steadying his nerves with another swig.
+function Staggerer({ position, rotation, seed = 0 }: { position: [number, number, number]; rotation: number; seed?: number }) {
+  const rig = useRig();
+  const reducedMotion = useGameStore((s) => s.reducedMotion);
+  useFrame((state) => {
+    const t = reducedMotion ? 1.0 : state.clock.elapsedTime;
+    poseStagger(rig, t, { seed, tankard: "right" });
+  });
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <Figure look={SOUSED} pose="standing" refs={rig} heldRight={<Tankard position={[0, 0, 0]} />} />
     </group>
   );
 }
@@ -400,8 +425,14 @@ export default function Bar() {
 
       <Barkeep />
 
-      {/* patrons, in descending order of consciousness */}
-      <BaldHammer position={[4.95, 0, -1.2]} phase={0.6} />
+      {/* patrons, in descending order of coordination: one up and dancing
+          on the open floor by the bar, one weaving beside the stool he
+          fell off, one face-down on the counter */}
+      <Dancer position={[3.6, 0, -2.45]} rotation={-0.95} />
+      <group position={[4.95, 0, -1.2]} rotation={[0, Math.PI / 2, 0]}>
+        <Stool seatY={0.62} r={0.21} />
+      </group>
+      <Staggerer position={[4.45, 0, -0.4]} rotation={-1.4} seed={1.7} />
       <SlumpedDrunk position={[4.95, 0, 0.75]} />
 
       {/* the evening's casualties: tankards and bottles across the counter */}

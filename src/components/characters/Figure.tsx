@@ -1,21 +1,37 @@
-import { useMemo, type ReactNode, type RefObject } from "react";
+import { useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { CanvasTexture, LatheGeometry, SRGBColorSpace, TextureLoader, Vector2, type Group } from "three";
 import { Cloth, Hair, Leather, Metal, Skin, Wood } from "./materials";
 
 // FIGURE
 // A procedural Renaissance person. Everything in the tavern that walks,
-// sits or drinks is assembled from this kit: real anatomy (jaw, nose,
-// ears, hooded eyes, brows, hands, legs and boots) under period clothing
-// (doublets with slashed or puffed sleeves, ruffs, belts, aprons, corsets,
-// plate armour, rags). Band members can wear their actual faces: a
-// transparent head cutout is wrapped onto a curved surface at the front of
-// a 3D skull so it still reads as a head with volume from the side.
+// sits, dances or drinks is assembled from this kit: a human body built to
+// real proportions (about seven and a half heads tall, shoulders two heads
+// wide, fingertips at mid thigh) with turned, muscle-shaped limbs — deltoid,
+// biceps, forearm, thigh, calf, a waist between the ribcage and the hips —
+// under period clothing (doublets with slashed or puffed sleeves, ruffs,
+// belts, aprons, corsets, plate armour, rags). Band members wear their
+// actual faces: a transparent head cutout is wrapped onto a curved surface
+// at the front of a 3D skull so it still reads as a head with volume from
+// the side.
 //
-// Skeleton (all pivots are groups so animation code can drive them):
-//   root (floor) → torso (hips) → shoulders → leftArm / rightArm → forearm
-//                              → head (neck)
-// Standing or seated changes only the legs and the hip height.
+// Skeleton. Every joint is a group that animation code can drive, and all
+// of them except the arms are ZERO-BASED: the rest pose (hip height, the
+// seated bend of the legs, a build's hunch) lives on a wrapper group, so an
+// animation sets rotations from zero no matter how the figure is posed.
+// The arm pivots carry their `armPose` rest rotation themselves, because
+// the musicians set absolute arm angles.
+//
+//   root (floor)
+//   └ pelvis ........ bob / sway / hip roll
+//     ├ leftLeg, rightLeg (hip) → shin (knee) → foot (ankle)
+//     ├ skirt
+//     └ torso ....... spine: lean, twist
+//       ├ leftArm, rightArm (shoulder) → forearm (elbow) → hand
+//       └ head (neck)
+//
+// `useRig()` hands back a full set of refs; the pose functions in
+// ./animation.ts (walk, dance, stagger) write into them each frame.
 
 export type Build = "stout" | "lanky" | "portly" | "broad" | "slim";
 
@@ -61,14 +77,44 @@ export type FigureLook = {
   face?: { url: string; back?: string; height?: number; keyTolerance?: number; yaw?: number };
 };
 
+export type Pivot = RefObject<Group | null>;
+
 export type FigureRefs = {
-  torso?: RefObject<Group | null>;
-  head?: RefObject<Group | null>;
-  leftArm?: RefObject<Group | null>;
-  rightArm?: RefObject<Group | null>;
-  leftForearm?: RefObject<Group | null>;
-  rightForearm?: RefObject<Group | null>;
+  pelvis?: Pivot;
+  torso?: Pivot;
+  head?: Pivot;
+  leftArm?: Pivot;
+  rightArm?: Pivot;
+  leftForearm?: Pivot;
+  rightForearm?: Pivot;
+  leftLeg?: Pivot;
+  rightLeg?: Pivot;
+  leftShin?: Pivot;
+  rightShin?: Pivot;
+  leftFoot?: Pivot;
+  rightFoot?: Pivot;
+  skirt?: Pivot;
 };
+
+// One ref per joint, for figures that are fully animated.
+export function useRig(): Required<FigureRefs> {
+  return {
+    pelvis: useRef<Group>(null),
+    torso: useRef<Group>(null),
+    head: useRef<Group>(null),
+    leftArm: useRef<Group>(null),
+    rightArm: useRef<Group>(null),
+    leftForearm: useRef<Group>(null),
+    rightForearm: useRef<Group>(null),
+    leftLeg: useRef<Group>(null),
+    rightLeg: useRef<Group>(null),
+    leftShin: useRef<Group>(null),
+    rightShin: useRef<Group>(null),
+    leftFoot: useRef<Group>(null),
+    rightFoot: useRef<Group>(null),
+    skirt: useRef<Group>(null),
+  };
+}
 
 export type ArmPose = {
   left?: [number, number, number];
@@ -90,6 +136,10 @@ type Props = {
   children?: ReactNode;
 };
 
+// Body proportions per build. torsoR is the chest half-width before the
+// 1.2× lateral stretch of the torso (so the real half-width is 1.2·torsoR);
+// torsoLen sets the distance from hips to shoulders together with it.
+// Limb lengths are metres on a figure roughly 1.8 m tall.
 const BUILDS: Record<
   Build,
   {
@@ -102,18 +152,57 @@ const BUILDS: Record<
     armLen: number;
     foreLen: number;
     legScale: number;
+    legR: number;
     hunch: number;
     neck: number;
   }
 > = {
-  stout: { torsoR: 0.21, torsoLen: 0.24, belly: 0, shoulderW: 0.25, headR: 0.16, armR: 0.06, armLen: 0.26, foreLen: 0.24, legScale: 1, hunch: 0, neck: 0.08 },
-  slim: { torsoR: 0.17, torsoLen: 0.26, belly: 0, shoulderW: 0.22, headR: 0.155, armR: 0.05, armLen: 0.26, foreLen: 0.24, legScale: 1, hunch: 0, neck: 0.09 },
-  lanky: { torsoR: 0.14, torsoLen: 0.5, belly: 0, shoulderW: 0.19, headR: 0.15, armR: 0.042, armLen: 0.36, foreLen: 0.32, legScale: 1.15, hunch: 0.32, neck: 0.1 },
-  portly: { torsoR: 0.27, torsoLen: 0.22, belly: 0.3, shoulderW: 0.3, headR: 0.17, armR: 0.07, armLen: 0.25, foreLen: 0.22, legScale: 1, hunch: 0.05, neck: 0.06 },
-  broad: { torsoR: 0.25, torsoLen: 0.28, belly: 0, shoulderW: 0.32, headR: 0.165, armR: 0.07, armLen: 0.28, foreLen: 0.25, legScale: 1.05, hunch: 0, neck: 0.08 },
+  stout: { torsoR: 0.15, torsoLen: 0.31, belly: 0, shoulderW: 0.2, headR: 0.16, armR: 0.05, armLen: 0.3, foreLen: 0.26, legScale: 1, legR: 0.082, hunch: 0, neck: 0.07 },
+  slim: { torsoR: 0.13, torsoLen: 0.34, belly: 0, shoulderW: 0.185, headR: 0.155, armR: 0.042, armLen: 0.3, foreLen: 0.26, legScale: 1.02, legR: 0.072, hunch: 0, neck: 0.08 },
+  lanky: { torsoR: 0.12, torsoLen: 0.52, belly: 0, shoulderW: 0.19, headR: 0.15, armR: 0.038, armLen: 0.37, foreLen: 0.33, legScale: 1.18, legR: 0.064, hunch: 0.32, neck: 0.09 },
+  portly: { torsoR: 0.19, torsoLen: 0.3, belly: 0.38, shoulderW: 0.215, headR: 0.17, armR: 0.06, armLen: 0.28, foreLen: 0.24, legScale: 0.97, legR: 0.096, hunch: 0.05, neck: 0.055 },
+  broad: { torsoR: 0.17, torsoLen: 0.36, belly: 0, shoulderW: 0.235, headR: 0.165, armR: 0.062, armLen: 0.31, foreLen: 0.27, legScale: 1.05, legR: 0.09, hunch: 0, neck: 0.07 },
 };
 
+const THIGH = 0.42;
+const SHIN = 0.39;
+const ANKLE = 0.07;
+const HIP_X = 0.095;
+
 const DEFAULT_SKIN = "#e4b48e";
+
+// Turned body parts are shared between every figure that asks for the same
+// shape, like the materials are.
+const latheCache = new Map<string, LatheGeometry>();
+function lathe(key: string, profile: [number, number][], segments = 14) {
+  let g = latheCache.get(key);
+  if (!g) {
+    g = new LatheGeometry(
+      profile.map(([x, y]) => new Vector2(x, y)),
+      segments
+    );
+    latheCache.set(key, g);
+  }
+  return g;
+}
+
+// A limb segment hanging down -Y from its joint at the origin: radius is
+// given as fractions of `r` along the length, top to bottom.
+function limbGeo(name: string, len: number, r: number, shape: [number, number][]) {
+  const key = `${name}|${len.toFixed(3)}|${r.toFixed(3)}`;
+  const pts: [number, number][] = [];
+  for (let i = shape.length - 1; i >= 0; i--) {
+    const [t, k] = shape[i];
+    pts.push([Math.max(0.001, r * k), -len * t]);
+  }
+  return lathe(key, pts, 12);
+}
+
+const UPPER_ARM: [number, number][] = [[0, 0.92], [0.12, 1.0], [0.3, 0.98], [0.5, 0.95], [0.72, 0.86], [0.9, 0.76], [1, 0.72]];
+const FOREARM: [number, number][] = [[0, 0.74], [0.08, 0.84], [0.22, 0.86], [0.45, 0.76], [0.7, 0.6], [0.9, 0.5], [1, 0.48]];
+const THIGH_SHAPE: [number, number][] = [[0, 0.98], [0.15, 1.0], [0.4, 0.95], [0.65, 0.86], [0.85, 0.74], [1, 0.68]];
+const SHIN_SHAPE: [number, number][] = [[0, 0.7], [0.12, 0.78], [0.28, 0.8], [0.5, 0.68], [0.75, 0.52], [0.9, 0.44], [1, 0.42]];
+
 
 // Head cutouts ship on a flat backdrop (white photo mattes, the grey of a
 // character sheet, the dark field of a reference board) rather than real
@@ -614,25 +703,26 @@ function ProceduralHead({ look, headR, skin }: { look: FigureLook; headR: number
   );
 }
 
-function Hand({ side, skin, glove, metal }: { side: number; skin: string; glove?: string; metal?: boolean }) {
+
+function Hand({ side, skin, glove, metal, scale = 1 }: { side: number; skin: string; glove?: string; metal?: boolean; scale?: number }) {
   const Mat = metal ? <Metal /> : glove ? <Leather color={glove} /> : <Skin color={skin} />;
   return (
-    <group rotation={[0.25, 0, 0]}>
+    <group rotation={[0.25, 0, 0]} scale={[scale, scale, scale]}>
       {/* palm */}
       <mesh scale={[1, 0.45, 1.2]} position={[0, -0.005, 0.012]}>
-        <sphereGeometry args={[0.05, 12, 10]} />
+        <sphereGeometry args={[0.046, 12, 10]} />
         {Mat}
       </mesh>
       {/* four fingers, slightly curled, middle ones longest */}
-      {[-0.028, -0.0095, 0.0095, 0.028].map((x, i) => (
-        <mesh key={i} position={[x, -0.014, 0.062]} rotation={[-Math.PI / 2 + 0.5, 0, 0]}>
-          <capsuleGeometry args={[0.0105, 0.038 - Math.abs(i - 1.5) * 0.007, 4, 6]} />
+      {[-0.026, -0.009, 0.009, 0.026].map((x, i) => (
+        <mesh key={i} position={[x, -0.014, 0.058]} rotation={[-Math.PI / 2 + 0.5, 0, 0]}>
+          <capsuleGeometry args={[0.0095, 0.038 - Math.abs(i - 1.5) * 0.007, 4, 6]} />
           {Mat}
         </mesh>
       ))}
       {/* thumb */}
-      <mesh position={[side * 0.048, 0.004, 0.022]} rotation={[-0.9, 0, side * 0.85]}>
-        <capsuleGeometry args={[0.012, 0.03, 4, 6]} />
+      <mesh position={[side * 0.044, 0.004, 0.02]} rotation={[-0.9, 0, side * 0.85]}>
+        <capsuleGeometry args={[0.011, 0.028, 4, 6]} />
         {Mat}
       </mesh>
     </group>
@@ -657,8 +747,8 @@ function Arm({
   skin: string;
   rot: [number, number, number];
   elbow: number;
-  armRef?: RefObject<Group | null>;
-  foreRef?: RefObject<Group | null>;
+  armRef?: Pivot;
+  foreRef?: Pivot;
   held?: ReactNode;
   shoulderX: number;
 }) {
@@ -671,74 +761,78 @@ function Arm({
   const armor = kind === "armor";
   const bareFore = sleeves === "rolled" || kind === "rags" || kind === "dress";
   const upperColor = kind === "dress" ? sleeveColor : kind === "shirt" ? sleeveColor : color;
+  const foreColor = sleeves === "slashed" || sleeves === "puffed" ? sleeveColor : upperColor;
   const stripes = useMemo(() => Array.from({ length: 6 }, (_, k) => (k / 6) * Math.PI * 2), []);
+  const upper = limbGeo("ua", B.armLen, B.armR, UPPER_ARM);
+  const fore = limbGeo("fa", B.foreLen, B.armR, FOREARM);
+  const UpperMat = armor ? <Metal /> : <Cloth color={upperColor} coarse={kind === "rags"} />;
+  const ForeMat = armor ? <Metal /> : bareFore ? <Skin color={skin} /> : <Cloth color={foreColor} />;
 
   return (
     <group ref={armRef} position={[side * shoulderX, 0, 0.02]} rotation={rot}>
-      {/* shoulder cap / pauldron */}
+      {/* deltoid / pauldron caps the shoulder */}
       {armor ? (
         <mesh position={[side * 0.01, 0.02, 0]} scale={[1, 0.8, 1]}>
-          <sphereGeometry args={[B.armR + 0.032, 14, 10]} />
+          <sphereGeometry args={[B.armR + 0.03, 14, 10]} />
           <Metal />
         </mesh>
       ) : (
-        <mesh position={[0, 0.01, 0]}>
-          <sphereGeometry args={[B.armR + 0.02, 12, 10]} />
-          <Cloth color={upperColor} coarse={kind === "rags"} />
+        <mesh position={[side * 0.004, 0.014, 0]} scale={[1.05, 1.12, 1]}>
+          <sphereGeometry args={[B.armR * 1.18, 14, 10]} />
+          {UpperMat}
         </mesh>
       )}
-      {/* upper arm: tapers from the deltoid to the elbow */}
-      <mesh position={[0, -B.armLen / 2, 0]} castShadow>
-        <cylinderGeometry args={[B.armR * 1.02, B.armR * 0.8, B.armLen, 12]} />
-        {armor ? <Metal /> : <Cloth color={upperColor} coarse={kind === "rags"} />}
+      {/* upper arm: deltoid into biceps, tapering to the elbow */}
+      <mesh geometry={upper} castShadow>
+        {UpperMat}
       </mesh>
-      {/* elbow */}
-      <mesh position={[0, -B.armLen, 0]}>
-        <sphereGeometry args={[B.armR * 0.82, 10, 8]} />
-        {armor ? <Metal /> : bareFore ? <Skin color={skin} /> : <Cloth color={sleeves === "slashed" || sleeves === "puffed" ? sleeveColor : upperColor} />}
-      </mesh>
+      {/* puffed / slashed sleeve over the upper arm */}
       {(sleeves === "puffed" || sleeves === "slashed") && !armor && kind !== "rags" && (
         <group position={[0, -B.armLen * 0.42, 0]}>
-          <mesh scale={[1, 1.25, 1]}>
-            <sphereGeometry args={[B.armR * 1.55, 14, 12]} />
+          <mesh scale={[1, 1.55, 1]}>
+            <sphereGeometry args={[B.armR * 1.32, 14, 12]} />
             <Cloth color={sleeves === "slashed" ? accent : upperColor} />
           </mesh>
           {sleeves === "slashed" &&
             stripes.map((a, i) => (
-              <mesh key={i} position={[Math.sin(a) * B.armR * 1.5, 0, Math.cos(a) * B.armR * 1.5]} rotation={[0, a, 0]}>
-                <boxGeometry args={[0.014, B.armR * 1.5, 0.012]} />
+              <mesh key={i} position={[Math.sin(a) * B.armR * 1.28, 0, Math.cos(a) * B.armR * 1.28]} rotation={[0, a, 0]}>
+                <boxGeometry args={[0.012, B.armR * 1.9, 0.01]} />
                 <Cloth color={sleeveColor} />
               </mesh>
             ))}
         </group>
       )}
-      {/* forearm (pivot at elbow) */}
+      {/* elbow */}
+      <mesh position={[0, -B.armLen, 0]}>
+        <sphereGeometry args={[B.armR * 0.74, 10, 8]} />
+        {ForeMat}
+      </mesh>
+      {/* forearm (pivot at elbow): thick below the elbow, narrow at the wrist */}
       <group ref={foreRef} position={[0, -B.armLen, 0]} rotation={[elbow, 0, 0]}>
-        <mesh position={[0, -B.foreLen / 2, 0]}>
-          <cylinderGeometry args={[B.armR * 0.82, B.armR * 0.58, B.foreLen, 12]} />
-          {armor ? <Metal /> : bareFore ? <Skin color={skin} /> : <Cloth color={sleeves === "slashed" || sleeves === "puffed" ? sleeveColor : upperColor} />}
+        <mesh geometry={fore} castShadow>
+          {ForeMat}
         </mesh>
         {/* cuff */}
         {!armor && !bareFore && (
-          <mesh position={[0, -B.foreLen + 0.03, 0]}>
-            <cylinderGeometry args={[B.armR * 0.78, B.armR * 0.72, 0.045, 12]} />
+          <mesh position={[0, -B.foreLen + 0.028, 0]}>
+            <cylinderGeometry args={[B.armR * 0.6, B.armR * 0.56, 0.045, 12]} />
             <Cloth color={kind === "shirt" ? sleeveColor : accent} />
           </mesh>
         )}
         {sleeves === "rolled" && (
-          <mesh position={[0, -0.03, 0]}>
-            <cylinderGeometry args={[B.armR * 0.98, B.armR * 0.9, 0.07, 12]} />
+          <mesh position={[0, -0.035, 0]}>
+            <cylinderGeometry args={[B.armR * 0.95, B.armR * 0.88, 0.07, 12]} />
             <Cloth color={upperColor} />
           </mesh>
         )}
         {o.wristCuffs && (
-          <mesh position={[0, -B.foreLen + 0.04, 0]}>
-            <cylinderGeometry args={[B.armR * 0.66, B.armR * 0.62, 0.05, 12]} />
+          <mesh position={[0, -B.foreLen + 0.035, 0]}>
+            <cylinderGeometry args={[B.armR * 0.56, B.armR * 0.52, 0.05, 12]} />
             <Leather color={o.wristCuffs} />
           </mesh>
         )}
-        <group position={[0, -B.foreLen - 0.03, 0]}>
-          <Hand side={side} skin={skin} glove={look.gloves} metal={armor} />
+        <group position={[0, -B.foreLen - 0.02, 0]}>
+          <Hand side={side} skin={skin} glove={look.gloves} metal={armor} scale={Math.min(1.15, Math.max(0.85, B.armR / 0.05))} />
           {held && <group position={[0, -0.02, 0.03]}>{held}</group>}
         </group>
       </group>
@@ -746,147 +840,151 @@ function Arm({
   );
 }
 
-function Boot({ color, cuff = false, metal = false }: { color: string; cuff?: boolean; metal?: boolean }) {
+// A boot with its ankle at the origin and its sole ANKLE below it.
+function Boot({ color, cuff = false, metal = false, scale = 1 }: { color: string; cuff?: boolean; metal?: boolean; scale?: number }) {
+  const Mat = metal ? <Metal /> : <Leather color={color} />;
   return (
-    <group>
+    <group position={[0, -ANKLE * scale, -0.03]} scale={[scale, scale, scale]}>
       {/* shaft, wider at the calf */}
-      <mesh position={[0, 0.12, 0]}>
-        <cylinderGeometry args={[0.078, 0.068, 0.24, 12]} />
-        {metal ? <Metal /> : <Leather color={color} />}
+      <mesh position={[0, 0.13, 0.01]}>
+        <cylinderGeometry args={[0.066, 0.058, 0.24, 12]} />
+        {Mat}
       </mesh>
       {cuff && (
-        <mesh position={[0, 0.21, 0]}>
-          <cylinderGeometry args={[0.1, 0.085, 0.07, 12]} />
+        <mesh position={[0, 0.22, 0.01]}>
+          <cylinderGeometry args={[0.088, 0.074, 0.07, 12]} />
           <Leather color={color} roughness={0.75} />
         </mesh>
       )}
       {cuff && (
-        <mesh position={[0, 0.21, 0.095]}>
+        <mesh position={[0, 0.22, 0.095]}>
           <boxGeometry args={[0.03, 0.025, 0.012]} />
           <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
         </mesh>
       )}
       {/* ankle + instep */}
-      <mesh position={[0, 0.045, 0.04]} scale={[1, 0.75, 1.5]}>
-        <sphereGeometry args={[0.065, 12, 10]} />
-        {metal ? <Metal /> : <Leather color={color} />}
+      <mesh position={[0, 0.05, 0.05]} scale={[1, 0.8, 1.5]}>
+        <sphereGeometry args={[0.058, 12, 10]} />
+        {Mat}
       </mesh>
       {/* toe box */}
-      <mesh position={[0, 0.035, 0.15]} scale={[1, 0.55, 1.2]}>
-        <sphereGeometry args={[0.06, 12, 10]} />
-        {metal ? <Metal /> : <Leather color={color} />}
+      <mesh position={[0, 0.035, 0.16]} scale={[1, 0.55, 1.2]}>
+        <sphereGeometry args={[0.055, 12, 10]} />
+        {Mat}
       </mesh>
       {/* sole + heel */}
-      <mesh position={[0, 0.008, 0.08]}>
-        <boxGeometry args={[0.12, 0.018, 0.26]} />
+      <mesh position={[0, 0.008, 0.085]}>
+        <boxGeometry args={[0.11, 0.018, 0.26]} />
         <meshStandardMaterial color="#1a120a" roughness={0.9} />
       </mesh>
-      <mesh position={[0, 0.02, -0.03]}>
-        <boxGeometry args={[0.11, 0.035, 0.07]} />
+      <mesh position={[0, 0.02, -0.02]}>
+        <boxGeometry args={[0.1, 0.035, 0.07]} />
         <meshStandardMaterial color="#1a120a" roughness={0.9} />
       </mesh>
     </group>
   );
 }
 
-function Legs({ pose, look, B, hipY }: { pose: "seated" | "standing"; look: FigureLook; B: (typeof BUILDS)[Build]; hipY: number }) {
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+// One leg: hip → knee → ankle. The rest pose (standing straight, or bent
+// to sit with the feet planted) sits on wrapper groups so the animated
+// pivots start from zero.
+function Leg({ side, pose, look, B, hipY, hipRef, kneeRef, ankleRef }: { side: number; pose: "seated" | "standing"; look: FigureLook; B: (typeof BUILDS)[Build]; hipY: number; hipRef?: Pivot; kneeRef?: Pivot; ankleRef?: Pivot }) {
   const hose = look.legs?.hose ?? "#3a2a1c";
   const boots = look.legs?.boots ?? "#2e1d10";
   const coarse = look.outfit?.kind === "rags";
   const greaves = !!look.legs?.greaves;
   const cuffs = !!look.legs?.bootCuffs;
-  const thighR = 0.085 * (B.torsoR / 0.21) ** 0.6;
-  const shinR = 0.068 * (B.torsoR / 0.21) ** 0.5;
-  if (look.legs?.skirt) {
-    const skirt = look.legs.skirt;
-    const topR = B.torsoR * 0.95;
-    const botR = 0.36;
-    return (
-      <group>
-        <mesh position={[0, hipY * 0.5, 0]} castShadow>
-          <cylinderGeometry args={[topR, botR, hipY, 20]} />
+  const thighLen = THIGH * B.legScale;
+  const shinLen = SHIN * B.legScale;
+  const r = B.legR;
+
+  let hipRest: [number, number, number] = [0, 0, side * -0.02];
+  let kneeRest: [number, number, number] = [0, 0, 0];
+  let ankleRest: [number, number, number] = [0, 0, 0];
+  if (pose === "seated") {
+    const tilt = 0.1; // thigh runs forward, dropping a little toward the knee
+    const drop = hipY - Math.sin(tilt) * thighLen - ANKLE * B.legScale;
+    const shinFwd = Math.acos(clamp(drop / shinLen, -1, 1)); // feet planted ahead of the knees
+    hipRest = [-(Math.PI / 2 - tilt), 0, side * -0.07];
+    kneeRest = [Math.PI / 2 - tilt - shinFwd, 0, 0];
+    ankleRest = [shinFwd, 0, side * 0.07];
+  }
+
+  const HoseMat = <Cloth color={hose} coarse={coarse} />;
+
+  return (
+    <group position={[side * HIP_X, 0, 0]} rotation={hipRest}>
+      <group ref={hipRef}>
+        {/* hip joint */}
+        <mesh position={[0, 0.01, 0]}>
+          <sphereGeometry args={[r * 0.98, 12, 10]} />
+          {HoseMat}
+        </mesh>
+        {/* thigh: full at the top, tapering into the knee */}
+        <mesh geometry={limbGeo("th", thighLen, r, THIGH_SHAPE)} castShadow>
+          {HoseMat}
+        </mesh>
+        <group position={[0, -thighLen, 0]} rotation={kneeRest}>
+          <group ref={kneeRef}>
+            {/* knee */}
+            <mesh>
+              <sphereGeometry args={[r * 0.7, 12, 10]} />
+              {HoseMat}
+            </mesh>
+            {/* shin: calf swell under the knee, narrow at the ankle */}
+            <mesh geometry={limbGeo("sh", shinLen, r, SHIN_SHAPE)} castShadow>
+              {greaves ? <Metal /> : HoseMat}
+            </mesh>
+            <group position={[0, -shinLen, 0]} rotation={ankleRest}>
+              <group ref={ankleRef}>
+                <Boot color={boots} cuff={cuffs} metal={greaves} scale={0.9 + B.legScale * 0.1} />
+              </group>
+            </group>
+          </group>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+// Skirt hanging from the pelvis: stops above the ankle so the boots show
+// when she walks, with soft folds and a hem band; the apron is a panel over
+// the front of it.
+function Skirt({ look, B, hipY, skirtRef }: { look: FigureLook; B: (typeof BUILDS)[Build]; hipY: number; skirtRef?: Pivot }) {
+  const skirt = look.legs?.skirt ?? "#4a4038";
+  const topR = B.torsoR * 1.12;
+  const botR = 0.33;
+  const len = hipY - 0.2;
+  const slope = Math.atan((botR - topR) / len);
+  return (
+    <group ref={skirtRef}>
+      <group position={[0, 0.02, 0]}>
+        <mesh position={[0, -len / 2, 0]} scale={[1.05, 1, 0.9]} castShadow>
+          <cylinderGeometry args={[topR, botR, len, 24, 1, true]} />
           <Cloth color={skirt} />
         </mesh>
-        {/* soft folds: a few darker vertical ribs */}
+        {/* soft folds: darker vertical ribs */}
         {[0.5, 1.6, 2.7, 3.8, 4.9].map((a) => (
-          <mesh key={a} position={[Math.sin(a) * (botR * 0.5 + topR * 0.5), hipY * 0.5, Math.cos(a) * (botR * 0.5 + topR * 0.5)]} rotation={[0, a, Math.atan((botR - topR) / hipY) * (a > Math.PI ? 1 : -1)]}>
-            <boxGeometry args={[0.04, hipY * 0.95, 0.025]} />
+          <mesh key={a} position={[Math.sin(a) * (botR + topR) * 0.5 * 1.05, -len / 2, Math.cos(a) * (botR + topR) * 0.5 * 0.9]} rotation={[0, a, slope * (a > Math.PI ? 1 : -1)]}>
+            <boxGeometry args={[0.04, len * 0.95, 0.025]} />
             <Cloth color={skirt} />
           </mesh>
         ))}
         {/* hem band */}
-        <mesh position={[0, 0.03, 0]}>
-          <cylinderGeometry args={[botR, botR + 0.01, 0.06, 20]} />
+        <mesh position={[0, -len + 0.03, 0]} scale={[1.05, 1, 0.9]}>
+          <cylinderGeometry args={[botR - 0.004, botR + 0.012, 0.06, 24, 1, true]} />
           <Cloth color={look.outfit?.accent ?? "#c9a24b"} />
         </mesh>
         {/* apron: a panel that follows the front of the skirt */}
         {look.outfit?.apron && (
-          <mesh position={[0, (hipY + 0.14) * 0.5, 0]}>
-            <cylinderGeometry args={[topR + 0.02, botR * 0.9 + 0.02, hipY + 0.14, 14, 1, true, -0.95, 1.9]} />
+          <mesh position={[0, -(len - 0.06) / 2 + 0.1, 0]} scale={[1.05, 1, 0.9]}>
+            <cylinderGeometry args={[topR + 0.02, botR * 0.9 + 0.02, len + 0.04, 14, 1, true, -0.95, 1.9]} />
             <Cloth color={look.outfit.apron} />
           </mesh>
         )}
-        {[-1, 1].map((side) => (
-          <group key={side} position={[side * 0.1, 0, 0.1]}>
-            <Boot color={boots} cuff={cuffs} />
-          </group>
-        ))}
       </group>
-    );
-  }
-  if (pose === "seated") {
-    const thighLen = 0.3 * B.legScale;
-    const shinLen = 0.3 * B.legScale;
-    return (
-      <group>
-        {[-1, 1].map((side) => (
-          <group key={side} position={[side * 0.1, hipY + 0.03, 0.03]} rotation={[-Math.PI / 2 + 0.12, 0, side * -0.08]}>
-            <mesh position={[0, -thighLen / 2 - 0.02, 0]} castShadow>
-              <cylinderGeometry args={[thighR * 1.05, thighR * 0.82, thighLen + 0.04, 12]} />
-              <Cloth color={hose} coarse={coarse} />
-            </mesh>
-            {/* knee + shin hanging down */}
-            <group position={[0, -thighLen - 0.05, 0]} rotation={[Math.PI / 2 - 0.25, 0, 0]}>
-              <mesh>
-                <sphereGeometry args={[thighR * 0.95, 10, 8]} />
-                <Cloth color={hose} coarse={coarse} />
-              </mesh>
-              <mesh position={[0, -shinLen / 2 - 0.02, 0]}>
-                <cylinderGeometry args={[shinR * 1.05, shinR * 0.72, shinLen + 0.04, 12]} />
-                {greaves ? <Metal /> : <Cloth color={hose} coarse={coarse} />}
-              </mesh>
-              <group position={[0, -shinLen - 0.14 - (hipY - 0.42), 0]}>
-                <Boot color={boots} cuff={cuffs} metal={greaves} />
-              </group>
-            </group>
-          </group>
-        ))}
-      </group>
-    );
-  }
-  const thighLen = hipY * 0.5;
-  const shinLen = hipY * 0.5 - 0.1;
-  return (
-    <group>
-      {[-1, 1].map((side) => (
-        <group key={side} position={[side * 0.1, hipY, 0]} rotation={[0, 0, side * 0.04]}>
-          <mesh position={[0, -thighLen / 2, 0]} castShadow>
-            <cylinderGeometry args={[thighR * 1.08, thighR * 0.85, thighLen, 12]} />
-            <Cloth color={hose} coarse={coarse} />
-          </mesh>
-          <mesh position={[0, -thighLen, 0]}>
-            <sphereGeometry args={[thighR * 0.85, 10, 8]} />
-            <Cloth color={hose} coarse={coarse} />
-          </mesh>
-          <mesh position={[0, -thighLen - shinLen / 2, 0]}>
-            <cylinderGeometry args={[thighR * 0.82, shinR * 0.72, shinLen, 12]} />
-            {greaves ? <Metal /> : <Cloth color={hose} coarse={coarse} />}
-          </mesh>
-          <group position={[0, -hipY, 0]}>
-            <Boot color={boots} cuff={cuffs} metal={greaves} />
-          </group>
-        </group>
-      ))}
     </group>
   );
 }
@@ -901,12 +999,7 @@ export function Stool({ seatY = 0.4, r = 0.24 }: { seatY?: number; r?: number })
       {[0, 1, 2].map((i) => {
         const a = (i / 3) * Math.PI * 2 + 0.5;
         return (
-          <mesh
-            key={i}
-            position={[Math.cos(a) * r * 0.62, (seatY - 0.06) / 2, Math.sin(a) * r * 0.62]}
-            rotation={[Math.sin(a) * 0.16, 0, -Math.cos(a) * 0.16]}
-           
-          >
+          <mesh key={i} position={[Math.cos(a) * r * 0.62, (seatY - 0.06) / 2, Math.sin(a) * r * 0.62]} rotation={[Math.sin(a) * 0.16, 0, -Math.cos(a) * 0.16]}>
             <cylinderGeometry args={[0.028, 0.035, seatY - 0.06, 8]} />
             <Wood base="#4a2e14" dark="#1f1206" planks={1} />
           </mesh>
@@ -920,31 +1013,36 @@ export function Stool({ seatY = 0.4, r = 0.24 }: { seatY?: number; r?: number })
   );
 }
 
-// Turned torso: a lathe profile from the hips (narrow) out over the seat of
-// the trousers, in at the waist, out over the chest to the shoulders and in
-// again to the neck, squashed front-to-back so the cross-section is a
-// human ellipse rather than a tube.
-function Torso({ B, torsoBase, shoulderY, children }: { B: (typeof BUILDS)[Build]; torsoBase: number; shoulderY: number; children: ReactNode }) {
+// Turned torso: a lathe profile from the hips out over the seat, in to the
+// waist, out over the ribcage and chest to the armpit line, then the slope
+// of the trapezius into the neck. Squashed front-to-back so the
+// cross-section is a human ellipse rather than a tube.
+function Torso({ B, torsoBase, shoulderY, female, children }: { B: (typeof BUILDS)[Build]; torsoBase: number; shoulderY: number; female?: boolean; children: ReactNode }) {
   const geo = useMemo(() => {
     const r = B.torsoR;
     const L = (shoulderY - torsoBase) / 0.86;
     const b = B.belly;
-    const pts = [
-      [r * 0.6, 0],
-      [r * 0.98, L * 0.07],
-      [r * 1.02, L * 0.22],
-      [r * (0.92 + b * 0.3), L * 0.4],
-      [r * (0.97 + b * 0.3), L * 0.55],
-      [r * 1.06, L * 0.72],
-      [r * 1.12, L * 0.86],
-      [r * 0.98, L * 0.94],
-      [r * 0.55, L * 1.0],
-      [0.075, L * 1.03],
-    ].map(([x, y]) => new Vector2(x, y));
-    return new LatheGeometry(pts, 28);
-  }, [B, torsoBase, shoulderY]);
+    const w = female ? 0.84 : 1;
+    const key = `torso|${r}|${L.toFixed(3)}|${b}|${w}`;
+    return lathe(
+      key,
+      [
+        [r * 0.72, 0],
+        [r * 1.1, L * 0.07],
+        [r * 1.08, L * 0.2],
+        [r * (0.9 + b * 0.45) * w, L * 0.38],
+        [r * (0.97 + b * 0.4) * (female ? 0.94 : 1), L * 0.52],
+        [r * (1.06 + b * 0.1), L * 0.68],
+        [r * 1.12, L * 0.82],
+        [r * 1.08, L * 0.9],
+        [r * 0.8, L * 0.97],
+        [0.072, L * 1.03],
+      ],
+      28
+    );
+  }, [B, torsoBase, shoulderY, female]);
   return (
-    <mesh geometry={geo} position={[0, torsoBase, 0]} scale={[1.2, 1, 0.8 + B.belly * 0.2]} castShadow>
+    <mesh geometry={geo} position={[0, torsoBase, 0]} scale={[1.2, 1, 0.78 + B.belly * 0.22]} castShadow>
       {children}
     </mesh>
   );
@@ -960,10 +1058,10 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
   const sleeveColor = o.sleeveColor ?? "#efe6d2";
   const collar = o.collar ?? (kind === "armor" ? "none" : kind === "shirt" || kind === "rags" || kind === "dress" ? "flat" : "ruff");
   const armor = kind === "armor";
-  const hipY = pose === "seated" ? 0.42 : 0.82 * B.legScale;
+  const hipY = pose === "seated" ? 0.42 : (THIGH + SHIN + ANKLE) * B.legScale;
   const torsoBase = 0.02;
   const chestY = torsoBase + B.torsoLen / 2 + B.torsoR * 0.6;
-  const shoulderY = chestY + B.torsoLen / 2 + B.torsoR * 0.35;
+  const shoulderY = torsoBase + B.torsoLen + B.torsoR * 0.95;
   const neckTop = shoulderY + B.neck + B.torsoR * 0.3;
   const SW = Math.max(B.shoulderW, B.torsoR * 1.3); // arm pivots sit on the turned shoulders
   const FZ = B.torsoR * 0.82; // front face of the torso
@@ -977,340 +1075,349 @@ export default function Figure({ look, pose, refs, armPose, highlight, highlight
   return (
     <group>
       {stool && pose === "seated" && <Stool />}
-      <Legs pose={pose} look={look} B={B} hipY={hipY} />
+      <group position={[0, hipY, 0]}>
+        <group ref={refs?.pelvis}>
+          {/* pelvis / seat of the trousers, the legs hang from it */}
+          <mesh position={[0, torsoBase - 0.03, -0.005]} scale={[1.22, 0.72, 0.86]}>
+            <sphereGeometry args={[B.torsoR * 1.08, 16, 12]} />
+            <Cloth color={look.legs?.skirt ?? look.legs?.hose ?? "#3a2a1c"} coarse={kind === "rags"} />
+          </mesh>
+          <Leg side={-1} pose={pose} look={look} B={B} hipY={hipY} hipRef={refs?.leftLeg} kneeRef={refs?.leftShin} ankleRef={refs?.leftFoot} />
+          <Leg side={1} pose={pose} look={look} B={B} hipY={hipY} hipRef={refs?.rightLeg} kneeRef={refs?.rightShin} ankleRef={refs?.rightFoot} />
+          {look.legs?.skirt && <Skirt look={look} B={B} hipY={hipY} skirtRef={refs?.skirt} />}
 
-      <group ref={refs?.torso} position={[0, hipY, 0]} rotation={[B.hunch, 0, 0]}>
-        {/* seat of the trousers under the torso */}
-        <mesh position={[0, torsoBase + 0.01, -0.01]} scale={[1.15, 0.55, 0.85]}>
-          <sphereGeometry args={[B.torsoR * 1.05, 16, 12]} />
-          <Cloth color={look.legs?.hose ?? "#3a2a1c"} coarse={kind === "rags"} />
-        </mesh>
-        {kind === "doublet" && (
-          <mesh position={[0, torsoBase + 0.05, 0]} scale={[1.2, 1, 0.8]}>
-            <cylinderGeometry args={[B.torsoR * 1.02, B.torsoR * 1.3, 0.14, 16, 1, true]} />
-            <Cloth color={color} {...glow} />
-          </mesh>
-        )}
-        {/* torso */}
-        <Torso B={B} torsoBase={torsoBase} shoulderY={shoulderY}>
-          {armor ? <Metal /> : <Cloth color={bodyColor} coarse={kind === "rags"} {...glow} />}
-        </Torso>
-        {/* belly, hanging forward over the belt */}
-        {B.belly > 0 && (
-          <mesh position={[0, chestY - 0.1, B.torsoR * 0.35]} scale={[1.15, 0.85, 0.95]}>
-            <sphereGeometry args={[B.torsoR * 1.0, 18, 14]} />
-            <Cloth color={bodyColor} {...glow} />
-          </mesh>
-        )}
-        {/* vest over a shirt: open front panels + back, hugging the torso */}
-        {o.vest && (
-          <group position={[0, chestY + 0.01, 0]} scale={[1.25, 1, 0.84 + B.belly * 0.2]}>
-            {[-1, 1].map((side) => (
-              <mesh key={side}>
-                <cylinderGeometry args={[B.torsoR * 1.1, B.torsoR * 1.04, B.torsoLen + B.torsoR * 1.3, 10, 1, true, side > 0 ? 0.3 : -1.55, 1.25]} />
-                <Leather color={o.vest ?? "#6b4423"} />
-              </mesh>
-            ))}
-            <mesh>
-              <cylinderGeometry args={[B.torsoR * 1.1, B.torsoR * 1.04, B.torsoLen + B.torsoR * 1.3, 14, 1, true, Math.PI - 1.35, 2.7]} />
-              <Leather color={o.vest ?? "#6b4423"} />
-            </mesh>
-          </group>
-        )}
-        {/* placket + buttons */}
-        {kind === "doublet" && (
-          <group position={[0, chestY, FZ + 0.004]}>
-            <mesh>
-              <boxGeometry args={[0.03, B.torsoLen + B.torsoR * 1.1, 0.01]} />
-              <Cloth color={accent} />
-            </mesh>
-            {buttons.map((i) => (
-              <mesh key={i} position={[0, (i - 2) * ((B.torsoLen + B.torsoR) / 5), 0.008]}>
-                <sphereGeometry args={[0.012, 8, 6]} />
-                <Metal color="#d9b25a" roughness={0.3} metalness={0.8} />
-              </mesh>
-            ))}
-          </group>
-        )}
-        {/* surcoat + cross for armour */}
-        {armor && (
-          <group position={[0, chestY - 0.02, FZ + 0.01]}>
-            <mesh>
-              <boxGeometry args={[B.torsoR * 1.3, B.torsoLen + B.torsoR * 1.4, 0.025]} />
-              <Cloth color={color} {...glow} />
-            </mesh>
-            <mesh position={[0, 0.02, 0.016]}>
-              <boxGeometry args={[0.04, 0.26, 0.01]} />
-              <Cloth color={accent} />
-            </mesh>
-            <mesh position={[0, 0.06, 0.016]}>
-              <boxGeometry args={[0.17, 0.04, 0.01]} />
-              <Cloth color={accent} />
-            </mesh>
-            {/* chainmail skirt */}
-            <mesh position={[0, -(B.torsoLen / 2 + B.torsoR * 0.9), -FZ - 0.01]} scale={[1.2, 1, 0.8]}>
-              <cylinderGeometry args={[B.torsoR * 1.05, B.torsoR * 1.25, 0.16, 16, 1, true]} />
-              <Metal color="#8c8f96" roughness={0.6} metalness={0.6} />
-            </mesh>
-          </group>
-        )}
-        {/* cloak draped from the shoulders down the back */}
-        {o.cloak && (
-          <group position={[0, chestY + B.torsoLen / 2 + B.torsoR * 0.2, -0.02]}>
-            <mesh position={[0, -(B.torsoLen + B.torsoR * 2.4) / 2, -0.03]} rotation={[0, Math.PI, 0]}>
-              <cylinderGeometry args={[B.shoulderW + 0.05, B.shoulderW + 0.12, B.torsoLen + B.torsoR * 2.2, 16, 1, true, -1.1, 2.2]} />
-              <Cloth color={o.cloak} />
-            </mesh>
-            {/* clasp cord across the chest */}
-            <mesh position={[0, 0.02, B.torsoR * 0.95]} rotation={[0, 0, 0]}>
-              <boxGeometry args={[B.shoulderW * 1.6, 0.02, 0.015]} />
-              <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
-            </mesh>
-          </group>
-        )}
-        {/* leather harness: crossed straps over the chest, buckled */}
-        {o.harness &&
-          [-1, 1].map((side) => (
-            <group key={side} position={[side * B.torsoR * 0.42, chestY + 0.02, FZ * (B.belly > 0 ? 1.28 : 1.08)]} rotation={[0.1, 0, side * -0.18]}>
-              <mesh>
-                <boxGeometry args={[0.055, B.torsoLen + B.torsoR * 1.5, 0.014]} />
-                <Leather color={o.harness ?? "#4a2e16"} />
-              </mesh>
-              <mesh position={[0, B.torsoR * 0.3, 0.01]}>
-                <boxGeometry args={[0.05, 0.04, 0.012]} />
-                <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
-              </mesh>
-              {[0.35, -0.25].map((f) => (
-                <mesh key={f} position={[0, f * (B.torsoLen + B.torsoR * 1.5), 0.01]}>
-                  <sphereGeometry args={[0.009, 6, 6]} />
-                  <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
+          <group rotation={[B.hunch, 0, 0]}>
+            <group ref={refs?.torso}>
+              {kind === "doublet" && (
+                <mesh position={[0, torsoBase + 0.05, 0]} scale={[1.2, 1, 0.8]}>
+                  <cylinderGeometry args={[B.torsoR * 1.02, B.torsoR * 1.3, 0.14, 16, 1, true]} />
+                  <Cloth color={color} {...glow} />
                 </mesh>
-              ))}
-            </group>
-          ))}
-        {/* baldric: one strap from the right shoulder to the left hip */}
-        {o.baldric && (
-          <group position={[0, chestY, FZ * (B.belly > 0 ? 1.25 : 1.08)]} rotation={[0.08, 0, 0.55]}>
-            <mesh>
-              <boxGeometry args={[0.048, B.torsoLen + B.torsoR * 2.3, 0.014]} />
-              <Leather color={o.baldric} />
-            </mesh>
-            <mesh position={[0, 0.05, 0.01]}>
-              <boxGeometry args={[0.045, 0.04, 0.012]} />
-              <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
-            </mesh>
-          </group>
-        )}
-        {/* necklaces */}
-        {o.necklace === "chain" && (
-          <group position={[0, shoulderY + B.torsoR * 0.12, 0.02]}>
-            <mesh rotation={[Math.PI / 2 + 0.35, 0, 0]} scale={[1, 1, 0.7]}>
-              <torusGeometry args={[0.1, 0.009, 6, 24]} />
-              <Metal color="#c9a24b" roughness={0.35} metalness={0.85} />
-            </mesh>
-            <mesh position={[0, -0.1, FZ * 1.1]}>
-              <cylinderGeometry args={[0.028, 0.028, 0.008, 12]} />
-              <Metal color="#d9b25a" roughness={0.3} metalness={0.85} />
-            </mesh>
-          </group>
-        )}
-        {o.necklace === "beads" &&
-          [0, 1, 2].map((k) => (
-            <mesh key={k} position={[0, shoulderY + B.torsoR * 0.1 - k * 0.03, 0.02 + k * 0.01]} rotation={[Math.PI / 2 + 0.3, 0, 0]} scale={[1, 1, 0.7]}>
-              <torusGeometry args={[0.085 + k * 0.025, 0.006, 6, 20]} />
-              <meshStandardMaterial color={["#c9a24b", "#4a3a2a", "#3f6b4a"][k]} roughness={0.5} metalness={k === 0 ? 0.8 : 0.1} />
-            </mesh>
-          ))}
-        {/* undershirt showing at the throat */}
-        {o.undershirt && (
-          <mesh position={[0, chestY + B.torsoLen * 0.35, FZ + 0.004]} rotation={[0.1, 0, 0]}>
-            <cylinderGeometry args={[0.001, 0.09, 0.22, 3, 1, false, Math.PI * 0.5, Math.PI]} />
-            <Cloth color={o.undershirt} />
-          </mesh>
-        )}
-        {/* bar towel tucked into the belt */}
-        {o.towel && (
-          <group position={[-B.torsoR * 0.95, torsoBase - 0.06, B.torsoR * 0.35]} rotation={[0.1, 0.3, 0.1]}>
-            <mesh>
-              <boxGeometry args={[0.1, 0.24, 0.02]} />
-              <Cloth color={typeof o.towel === "string" ? o.towel : "#efe6d2"} />
-            </mesh>
-            {typeof o.towel !== "string" && (
-              <mesh position={[0, -0.07, 0.011]}>
-                <boxGeometry args={[0.1, 0.02, 0.004]} />
-                <Cloth color="#8a2a2a" />
-              </mesh>
-            )}
-          </group>
-        )}
-        {/* hip pouch without a belt */}
-        {o.pouch && (
-          <mesh position={[B.torsoR * 0.9, torsoBase, B.torsoR * 0.45]} scale={[1, 1.2, 0.7]}>
-            <sphereGeometry args={[0.055, 10, 8]} />
-            <Leather color={o.pouch} />
-          </mesh>
-        )}
-        {/* suspenders */}
-        {o.suspenders &&
-          [-1, 1].map((side) => (
-            <mesh key={side} position={[side * B.torsoR * 0.45, chestY + 0.02, FZ * 1.02]} rotation={[0.08, 0, side * 0.1]}>
-              <boxGeometry args={[0.045, B.torsoLen + B.torsoR * 1.3, 0.012]} />
-              <Leather color={o.suspenders ?? '#4a2e16'} />
-            </mesh>
-          ))}
-        {/* corset laced over the bodice */}
-        {o.corset && (
-          <group position={[0, chestY - B.torsoR * 0.35, 0]}>
-            <mesh scale={[1.22, 1, 0.84]}>
-              <cylinderGeometry args={[B.torsoR * 1.0, B.torsoR * 1.1, B.torsoLen + B.torsoR * 0.6, 16]} />
-              <Leather color={o.corset} />
-            </mesh>
-            {[0, 1, 2, 3].map((i) => (
-              <mesh key={i} position={[0, (i - 1.5) * 0.06, FZ * 1.12]} rotation={[0, 0, i % 2 ? 0.8 : -0.8]}>
-                <boxGeometry args={[0.1, 0.008, 0.01]} />
-                <Cloth color="#efe6d2" />
-              </mesh>
-            ))}
-          </group>
-        )}
-        {/* bust under the chemise, only on the dress silhouette */}
-        {kind === "dress" &&
-          [-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.085, chestY + 0.08, FZ * 0.85]}>
-              <sphereGeometry args={[0.095, 14, 12]} />
-              <Cloth color={sleeveColor} />
-            </mesh>
-          ))}
-        {/* apron (a skirted figure gets its apron from the skirt instead) */}
-        {o.apron && !look.legs?.skirt && (
-          <group>
-            <mesh position={[0, chestY - B.torsoR * 0.2 - 0.08, FZ + 0.03]} rotation={[0.1, 0, 0]}>
-              <boxGeometry args={[B.torsoR * 1.8, B.torsoLen + B.torsoR * 1.6, 0.02]} />
-              <Cloth color={o.apron} />
-            </mesh>
-            {/* bib */}
-            {kind !== "dress" && (
-              <mesh position={[0, chestY + B.torsoR * 0.55, FZ + 0.025]}>
-                <boxGeometry args={[B.torsoR * 1.1, B.torsoR * 0.9, 0.02]} />
-                <Cloth color={o.apron} />
-              </mesh>
-            )}
-            {/* apron falls over the lap */}
-            {!look.legs?.skirt && (
-            <mesh
-              position={[0, pose === "seated" ? torsoBase - 0.02 : torsoBase - 0.4, pose === "seated" ? FZ + 0.2 : FZ + 0.1]}
-              rotation={[pose === "seated" ? -1.35 : 0.12, 0, 0]}
+              )}
+              {/* torso */}
+              <Torso B={B} torsoBase={torsoBase} shoulderY={shoulderY}>
+                {armor ? <Metal /> : <Cloth color={bodyColor} coarse={kind === "rags"} {...glow} />}
+              </Torso>
+              {/* belly, hanging forward over the belt */}
+              {B.belly > 0 && (
+                <mesh position={[0, chestY - 0.1, B.torsoR * 0.35]} scale={[1.15, 0.85, 0.95]}>
+                  <sphereGeometry args={[B.torsoR * 1.0, 18, 14]} />
+                  <Cloth color={bodyColor} {...glow} />
+                </mesh>
+              )}
+              {/* vest over a shirt: open front panels + back, hugging the torso */}
+              {o.vest && (
+                <group position={[0, chestY + 0.01, 0]} scale={[1.25, 1, 0.84 + B.belly * 0.2]}>
+                  {[-1, 1].map((side) => (
+                    <mesh key={side}>
+                      <cylinderGeometry args={[B.torsoR * 1.1, B.torsoR * 1.04, B.torsoLen + B.torsoR * 1.3, 10, 1, true, side > 0 ? 0.3 : -1.55, 1.25]} />
+                      <Leather color={o.vest ?? "#6b4423"} />
+                    </mesh>
+                  ))}
+                  <mesh>
+                    <cylinderGeometry args={[B.torsoR * 1.1, B.torsoR * 1.04, B.torsoLen + B.torsoR * 1.3, 14, 1, true, Math.PI - 1.35, 2.7]} />
+                    <Leather color={o.vest ?? "#6b4423"} />
+                  </mesh>
+                </group>
+              )}
+              {/* placket + buttons */}
+              {kind === "doublet" && (
+                <group position={[0, chestY, FZ + 0.004]}>
+                  <mesh>
+                    <boxGeometry args={[0.03, B.torsoLen + B.torsoR * 1.1, 0.01]} />
+                    <Cloth color={accent} />
+                  </mesh>
+                  {buttons.map((i) => (
+                    <mesh key={i} position={[0, (i - 2) * ((B.torsoLen + B.torsoR) / 5), 0.008]}>
+                      <sphereGeometry args={[0.012, 8, 6]} />
+                      <Metal color="#d9b25a" roughness={0.3} metalness={0.8} />
+                    </mesh>
+                  ))}
+                </group>
+              )}
+              {/* surcoat + cross for armour */}
+              {armor && (
+                <group position={[0, chestY - 0.02, FZ + 0.01]}>
+                  <mesh>
+                    <boxGeometry args={[B.torsoR * 1.3, B.torsoLen + B.torsoR * 1.4, 0.025]} />
+                    <Cloth color={color} {...glow} />
+                  </mesh>
+                  <mesh position={[0, 0.02, 0.016]}>
+                    <boxGeometry args={[0.04, 0.26, 0.01]} />
+                    <Cloth color={accent} />
+                  </mesh>
+                  <mesh position={[0, 0.06, 0.016]}>
+                    <boxGeometry args={[0.17, 0.04, 0.01]} />
+                    <Cloth color={accent} />
+                  </mesh>
+                  {/* chainmail skirt */}
+                  <mesh position={[0, -(B.torsoLen / 2 + B.torsoR * 0.9), -FZ - 0.01]} scale={[1.2, 1, 0.8]}>
+                    <cylinderGeometry args={[B.torsoR * 1.05, B.torsoR * 1.25, 0.16, 16, 1, true]} />
+                    <Metal color="#8c8f96" roughness={0.6} metalness={0.6} />
+                  </mesh>
+                </group>
+              )}
+              {/* cloak draped from the shoulders down the back */}
+              {o.cloak && (
+                <group position={[0, chestY + B.torsoLen / 2 + B.torsoR * 0.2, -0.02]}>
+                  <mesh position={[0, -(B.torsoLen + B.torsoR * 2.4) / 2, -0.03]} rotation={[0, Math.PI, 0]}>
+                    <cylinderGeometry args={[B.shoulderW + 0.05, B.shoulderW + 0.12, B.torsoLen + B.torsoR * 2.2, 16, 1, true, -1.1, 2.2]} />
+                    <Cloth color={o.cloak} />
+                  </mesh>
+                  {/* clasp cord across the chest */}
+                  <mesh position={[0, 0.02, B.torsoR * 0.95]} rotation={[0, 0, 0]}>
+                    <boxGeometry args={[B.shoulderW * 1.6, 0.02, 0.015]} />
+                    <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
+                  </mesh>
+                </group>
+              )}
+              {/* leather harness: crossed straps over the chest, buckled */}
+              {o.harness &&
+                [-1, 1].map((side) => (
+                  <group key={side} position={[side * B.torsoR * 0.42, chestY + 0.02, FZ * (B.belly > 0 ? 1.28 : 1.08)]} rotation={[0.1, 0, side * -0.18]}>
+                    <mesh>
+                      <boxGeometry args={[0.055, B.torsoLen + B.torsoR * 1.5, 0.014]} />
+                      <Leather color={o.harness ?? "#4a2e16"} />
+                    </mesh>
+                    <mesh position={[0, B.torsoR * 0.3, 0.01]}>
+                      <boxGeometry args={[0.05, 0.04, 0.012]} />
+                      <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
+                    </mesh>
+                    {[0.35, -0.25].map((f) => (
+                      <mesh key={f} position={[0, f * (B.torsoLen + B.torsoR * 1.5), 0.01]}>
+                        <sphereGeometry args={[0.009, 6, 6]} />
+                        <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
+                      </mesh>
+                    ))}
+                  </group>
+                ))}
+              {/* baldric: one strap from the right shoulder to the left hip */}
+              {o.baldric && (
+                <group position={[0, chestY, FZ * (B.belly > 0 ? 1.25 : 1.08)]} rotation={[0.08, 0, 0.55]}>
+                  <mesh>
+                    <boxGeometry args={[0.048, B.torsoLen + B.torsoR * 2.3, 0.014]} />
+                    <Leather color={o.baldric} />
+                  </mesh>
+                  <mesh position={[0, 0.05, 0.01]}>
+                    <boxGeometry args={[0.045, 0.04, 0.012]} />
+                    <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
+                  </mesh>
+                </group>
+              )}
+              {/* necklaces */}
+              {o.necklace === "chain" && (
+                <group position={[0, shoulderY + B.torsoR * 0.12, 0.02]}>
+                  <mesh rotation={[Math.PI / 2 + 0.35, 0, 0]} scale={[1, 1, 0.7]}>
+                    <torusGeometry args={[0.1, 0.009, 6, 24]} />
+                    <Metal color="#c9a24b" roughness={0.35} metalness={0.85} />
+                  </mesh>
+                  <mesh position={[0, -0.1, FZ * 1.1]}>
+                    <cylinderGeometry args={[0.028, 0.028, 0.008, 12]} />
+                    <Metal color="#d9b25a" roughness={0.3} metalness={0.85} />
+                  </mesh>
+                </group>
+              )}
+              {o.necklace === "beads" &&
+                [0, 1, 2].map((k) => (
+                  <mesh key={k} position={[0, shoulderY + B.torsoR * 0.1 - k * 0.03, 0.02 + k * 0.01]} rotation={[Math.PI / 2 + 0.3, 0, 0]} scale={[1, 1, 0.7]}>
+                    <torusGeometry args={[0.085 + k * 0.025, 0.006, 6, 20]} />
+                    <meshStandardMaterial color={["#c9a24b", "#4a3a2a", "#3f6b4a"][k]} roughness={0.5} metalness={k === 0 ? 0.8 : 0.1} />
+                  </mesh>
+                ))}
+              {/* undershirt showing at the throat */}
+              {o.undershirt && (
+                <mesh position={[0, chestY + B.torsoLen * 0.35, FZ + 0.004]} rotation={[0.1, 0, 0]}>
+                  <cylinderGeometry args={[0.001, 0.09, 0.22, 3, 1, false, Math.PI * 0.5, Math.PI]} />
+                  <Cloth color={o.undershirt} />
+                </mesh>
+              )}
+              {/* bar towel tucked into the belt */}
+              {o.towel && (
+                <group position={[-B.torsoR * 0.95, torsoBase - 0.06, B.torsoR * 0.35]} rotation={[0.1, 0.3, 0.1]}>
+                  <mesh>
+                    <boxGeometry args={[0.1, 0.24, 0.02]} />
+                    <Cloth color={typeof o.towel === "string" ? o.towel : "#efe6d2"} />
+                  </mesh>
+                  {typeof o.towel !== "string" && (
+                    <mesh position={[0, -0.07, 0.011]}>
+                      <boxGeometry args={[0.1, 0.02, 0.004]} />
+                      <Cloth color="#8a2a2a" />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {/* hip pouch without a belt */}
+              {o.pouch && (
+                <mesh position={[B.torsoR * 0.9, torsoBase, B.torsoR * 0.45]} scale={[1, 1.2, 0.7]}>
+                  <sphereGeometry args={[0.055, 10, 8]} />
+                  <Leather color={o.pouch} />
+                </mesh>
+              )}
+              {/* suspenders */}
+              {o.suspenders &&
+                [-1, 1].map((side) => (
+                  <mesh key={side} position={[side * B.torsoR * 0.45, chestY + 0.02, FZ * 1.02]} rotation={[0.08, 0, side * 0.1]}>
+                    <boxGeometry args={[0.045, B.torsoLen + B.torsoR * 1.3, 0.012]} />
+                    <Leather color={o.suspenders ?? '#4a2e16'} />
+                  </mesh>
+                ))}
+              {/* corset laced over the bodice */}
+              {o.corset && (
+                <group position={[0, chestY - B.torsoR * 0.35, 0]}>
+                  <mesh scale={[1.22, 1, 0.84]}>
+                    <cylinderGeometry args={[B.torsoR * 1.0, B.torsoR * 1.1, B.torsoLen + B.torsoR * 0.6, 16]} />
+                    <Leather color={o.corset} />
+                  </mesh>
+                  {[0, 1, 2, 3].map((i) => (
+                    <mesh key={i} position={[0, (i - 1.5) * 0.06, FZ * 1.12]} rotation={[0, 0, i % 2 ? 0.8 : -0.8]}>
+                      <boxGeometry args={[0.1, 0.008, 0.01]} />
+                      <Cloth color="#efe6d2" />
+                    </mesh>
+                  ))}
+                </group>
+              )}
+              {/* bust under the chemise, only on the dress silhouette */}
+              {kind === "dress" &&
+                [-1, 1].map((side) => (
+                  <mesh key={side} position={[side * 0.085, chestY + 0.08, FZ * 0.85]}>
+                    <sphereGeometry args={[0.095, 14, 12]} />
+                    <Cloth color={sleeveColor} />
+                  </mesh>
+                ))}
+              {/* apron (a skirted figure gets its apron from the skirt instead) */}
+              {o.apron && !look.legs?.skirt && (
+                <group>
+                  <mesh position={[0, chestY - B.torsoR * 0.2 - 0.08, FZ + 0.03]} rotation={[0.1, 0, 0]}>
+                    <boxGeometry args={[B.torsoR * 1.8, B.torsoLen + B.torsoR * 1.6, 0.02]} />
+                    <Cloth color={o.apron} />
+                  </mesh>
+                  {/* bib */}
+                  {kind !== "dress" && (
+                    <mesh position={[0, chestY + B.torsoR * 0.55, FZ + 0.025]}>
+                      <boxGeometry args={[B.torsoR * 1.1, B.torsoR * 0.9, 0.02]} />
+                      <Cloth color={o.apron} />
+                    </mesh>
+                  )}
+                  {/* apron falls over the lap */}
+                  {!look.legs?.skirt && (
+                  <mesh
+                    position={[0, pose === "seated" ? torsoBase - 0.02 : torsoBase - 0.4, pose === "seated" ? FZ + 0.2 : FZ + 0.1]}
+                    rotation={[pose === "seated" ? -1.35 : 0.12, 0, 0]}
              
-            >
-              <boxGeometry args={[B.torsoR * 1.7, pose === "seated" ? 0.36 : 0.75, 0.02]} />
-              <Cloth color={o.apron} />
-            </mesh>
-            )}
-          </group>
-        )}
-        {/* belt + buckle */}
-        {(o.belt ?? (kind === "doublet" || kind === "armor" || kind === "shirt" || kind === "tunic")) && (
-          <group position={[0, torsoBase + 0.1, 0]}>
-            <mesh scale={[1.22, 1, 0.84 + B.belly * 0.2]}>
-              <cylinderGeometry args={[B.torsoR * 1.06, B.torsoR * 1.08, 0.055, 18]} />
-              <Leather color="#2e1b0d" />
-            </mesh>
-            <mesh position={[0, 0, FZ * 1.3]}>
-              <boxGeometry args={[0.055, 0.045, 0.02]} />
-              <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
-            </mesh>
-            {/* pouch on the hip */}
-            {!armor && (
-              <mesh position={[B.torsoR * 0.85, -0.06, B.torsoR * 0.5]} scale={[1, 1.2, 0.7]}>
-                <sphereGeometry args={[0.05, 10, 8]} />
-                <Leather color="#4a2e16" />
+                  >
+                    <boxGeometry args={[B.torsoR * 1.7, pose === "seated" ? 0.36 : 0.75, 0.02]} />
+                    <Cloth color={o.apron} />
+                  </mesh>
+                  )}
+                </group>
+              )}
+              {/* belt + buckle */}
+              {(o.belt ?? (kind === "doublet" || kind === "armor" || kind === "shirt" || kind === "tunic")) && (
+                <group position={[0, torsoBase + 0.1, 0]}>
+                  <mesh scale={[1.22, 1, 0.84 + B.belly * 0.2]}>
+                    <cylinderGeometry args={[B.torsoR * 1.06, B.torsoR * 1.08, 0.055, 18]} />
+                    <Leather color="#2e1b0d" />
+                  </mesh>
+                  <mesh position={[0, 0, FZ * 1.3]}>
+                    <boxGeometry args={[0.055, 0.045, 0.02]} />
+                    <Metal color="#c9a24b" roughness={0.35} metalness={0.8} />
+                  </mesh>
+                  {/* pouch on the hip */}
+                  {!armor && (
+                    <mesh position={[B.torsoR * 0.85, -0.06, B.torsoR * 0.5]} scale={[1, 1.2, 0.7]}>
+                      <sphereGeometry args={[0.05, 10, 8]} />
+                      <Leather color="#4a2e16" />
+                    </mesh>
+                  )}
+                </group>
+              )}
+              {/* rag patches */}
+              {kind === "rags" && (
+                <group>
+                  <mesh position={[0.07, chestY + 0.04, FZ + 0.005]} rotation={[0, 0, 0.4]}>
+                    <boxGeometry args={[0.09, 0.07, 0.02]} />
+                    <Cloth color={accent} coarse />
+                  </mesh>
+                  <mesh position={[-0.1, chestY - 0.06, FZ]} rotation={[0, 0, -0.3]}>
+                    <boxGeometry args={[0.07, 0.09, 0.02]} />
+                    <Cloth color={accent} coarse />
+                  </mesh>
+                  {[-0.12, -0.04, 0.05, 0.13].map((x, i) => (
+                    <mesh key={i} position={[x, torsoBase - 0.08, FZ * 0.95 + (i % 2) * 0.04]} rotation={[0.15, 0, (i - 1.5) * 0.2]}>
+                      <boxGeometry args={[0.05, 0.14, 0.015]} />
+                      <Cloth color={i % 2 ? color : accent} coarse />
+                    </mesh>
+                  ))}
+                </group>
+              )}
+
+              {/* neck */}
+              <mesh position={[0, shoulderY + B.neck / 2 + B.torsoR * 0.15, 0]}>
+                <cylinderGeometry args={[0.058, 0.074, B.neck + B.torsoR * 0.35, 12]} />
+                <Skin color={skin} />
               </mesh>
-            )}
-          </group>
-        )}
-        {/* rag patches */}
-        {kind === "rags" && (
-          <group>
-            <mesh position={[0.07, chestY + 0.04, FZ + 0.005]} rotation={[0, 0, 0.4]}>
-              <boxGeometry args={[0.09, 0.07, 0.02]} />
-              <Cloth color={accent} coarse />
-            </mesh>
-            <mesh position={[-0.1, chestY - 0.06, FZ]} rotation={[0, 0, -0.3]}>
-              <boxGeometry args={[0.07, 0.09, 0.02]} />
-              <Cloth color={accent} coarse />
-            </mesh>
-            {[-0.12, -0.04, 0.05, 0.13].map((x, i) => (
-              <mesh key={i} position={[x, torsoBase - 0.08, FZ * 0.95 + (i % 2) * 0.04]} rotation={[0.15, 0, (i - 1.5) * 0.2]}>
-                <boxGeometry args={[0.05, 0.14, 0.015]} />
-                <Cloth color={i % 2 ? color : accent} coarse />
-              </mesh>
-            ))}
-          </group>
-        )}
+              {/* collars */}
+              {collar === "ruff" && (
+                <mesh position={[0, shoulderY + B.torsoR * 0.32, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.55]}>
+                  <torusGeometry args={[0.095, 0.045, 8, 24]} />
+                  <Cloth color="#f3ede0" />
+                </mesh>
+              )}
+              {collar === "turtleneck" && (
+                <mesh position={[0, shoulderY + B.torsoR * 0.35, 0]}>
+                  <cylinderGeometry args={[0.085, 0.1, 0.11, 14]} />
+                  <Cloth color={color} />
+                </mesh>
+              )}
+              {collar === "flat" &&
+                [-1, 1].map((side) => (
+                  <mesh key={side} position={[side * 0.08, shoulderY + B.torsoR * 0.25, 0.1]} rotation={[0.5, 0, side * 0.35]}>
+                    <boxGeometry args={[0.11, 0.016, 0.11]} />
+                    <Cloth color={sleeveColor} />
+                  </mesh>
+                ))}
+              {collar === "hood" && (
+                <mesh position={[0, shoulderY + B.torsoR * 0.3, -0.05]} rotation={[Math.PI / 2 - 0.3, 0, 0]} scale={[1.1, 1, 0.7]}>
+                  <torusGeometry args={[0.13, 0.065, 10, 20]} />
+                  <Cloth color={color} />
+                </mesh>
+              )}
 
-        {/* neck */}
-        <mesh position={[0, shoulderY + B.neck / 2 + B.torsoR * 0.15, 0]}>
-          <cylinderGeometry args={[0.062, 0.08, B.neck + B.torsoR * 0.35, 12]} />
-          <Skin color={skin} />
-        </mesh>
-        {/* collars */}
-        {collar === "ruff" && (
-          <mesh position={[0, shoulderY + B.torsoR * 0.32, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.55]}>
-            <torusGeometry args={[0.095, 0.045, 8, 24]} />
-            <Cloth color="#f3ede0" />
-          </mesh>
-        )}
-        {collar === "turtleneck" && (
-          <mesh position={[0, shoulderY + B.torsoR * 0.35, 0]}>
-            <cylinderGeometry args={[0.085, 0.1, 0.11, 14]} />
-            <Cloth color={color} />
-          </mesh>
-        )}
-        {collar === "flat" &&
-          [-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.08, shoulderY + B.torsoR * 0.25, 0.1]} rotation={[0.5, 0, side * 0.35]}>
-              <boxGeometry args={[0.11, 0.016, 0.11]} />
-              <Cloth color={sleeveColor} />
-            </mesh>
-          ))}
-        {collar === "hood" && (
-          <mesh position={[0, shoulderY + B.torsoR * 0.3, -0.05]} rotation={[Math.PI / 2 - 0.3, 0, 0]} scale={[1.1, 1, 0.7]}>
-            <torusGeometry args={[0.13, 0.065, 10, 20]} />
-            <Cloth color={color} />
-          </mesh>
-        )}
+              {/* arms (shoulder pivots) */}
+              <group position={[0, shoulderY, 0]}>
+                <Arm side={-1} look={look} B={B} skin={skin} rot={leftRot} elbow={armPose?.leftElbow ?? -1.15} armRef={refs?.leftArm} foreRef={refs?.leftForearm} held={heldLeft} shoulderX={SW} />
+                <Arm side={1} look={look} B={B} skin={skin} rot={rightRot} elbow={armPose?.rightElbow ?? -1.15} armRef={refs?.rightArm} foreRef={refs?.rightForearm} held={heldRight} shoulderX={SW} />
+              </group>
 
-        {/* arms (shoulder pivots) */}
-        <group position={[0, shoulderY, 0]}>
-          <Arm side={-1} look={look} B={B} skin={skin} rot={leftRot} elbow={armPose?.leftElbow ?? -1.15} armRef={refs?.leftArm} foreRef={refs?.leftForearm} held={heldLeft} shoulderX={SW} />
-          <Arm side={1} look={look} B={B} skin={skin} rot={rightRot} elbow={armPose?.rightElbow ?? -1.15} armRef={refs?.rightArm} foreRef={refs?.rightForearm} held={heldRight} shoulderX={SW} />
-        </group>
-
-        {/* head (pivot at the top of the neck). The face yaw sits outside the
-            animated pivot so a head bob still nods toward wherever the face
-            is looking. */}
-        <group rotation={[0, look.face?.yaw ?? 0, 0]}>
-          <group ref={refs?.head} position={[0, neckTop, 0]} rotation={[-B.hunch * 0.85, 0, 0]}>
-            {look.face ? (
-              <PhotoHead url={look.face.url} back={look.face.back ?? look.hair?.color ?? skin} height={look.face.height} headR={B.headR} tolerance={look.face.keyTolerance} longHair={look.hair?.style === "long" ? look.hair.color ?? "#3a2616" : undefined} />
-            ) : (
-              <ProceduralHead look={look} headR={B.headR} skin={skin} />
-            )}
+              {/* head (pivot at the top of the neck). The face yaw and the
+                  build's hunch sit outside the animated pivot so a head bob
+                  still nods toward wherever the face is looking. */}
+              <group rotation={[0, look.face?.yaw ?? 0, 0]}>
+                <group position={[0, neckTop, 0]} rotation={[-B.hunch * 0.85, 0, 0]}>
+                  <group ref={refs?.head}>
+                    {look.face ? (
+                      <PhotoHead url={look.face.url} back={look.face.back ?? look.hair?.color ?? skin} height={look.face.height} headR={B.headR} tolerance={look.face.keyTolerance} longHair={look.hair?.style === "long" ? look.hair.color ?? "#3a2616" : undefined} />
+                    ) : (
+                      <ProceduralHead look={look} headR={B.headR} skin={skin} />
+                    )}
+                  </group>
+                </group>
+              </group>
+              {children}
+            </group>
           </group>
         </group>
-        {children}
       </group>
     </group>
   );
 }
 
-// Where the head centre and the shoulders end up in root space for a given
-// build and pose. Used by callers that want to hang tooltips or props.
+// Where the hips, shoulders and head end up in root space for a given build
+// and pose. Used by callers that want to hang tooltips or props.
 export function figureMetrics(build: Build = "stout", pose: "seated" | "standing" = "seated") {
   const B = BUILDS[build];
-  const hipY = pose === "seated" ? 0.42 : 0.82 * B.legScale;
-  const chestY = 0.02 + B.torsoLen / 2 + B.torsoR * 0.6;
-  const shoulderY = chestY + B.torsoLen / 2 + B.torsoR * 0.35;
+  const hipY = pose === "seated" ? 0.42 : (THIGH + SHIN + ANKLE) * B.legScale;
+  const shoulderY = 0.02 + B.torsoLen + B.torsoR * 0.95;
   const neckTop = shoulderY + B.neck + B.torsoR * 0.3;
   return { hipY, shoulderY: hipY + shoulderY, headY: hipY + neckTop + B.headR, top: hipY + neckTop + B.headR * 2.4, hunch: B.hunch };
 }

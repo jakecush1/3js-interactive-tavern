@@ -4,14 +4,17 @@ import { Html } from "@react-three/drei";
 import type { Group, Object3D } from "three";
 import { useGameStore } from "../lib/useGameStore";
 import { glowAnchors } from "../lib/glow";
-import Figure, { type FigureLook } from "./characters/Figure";
+import Figure, { useRig, type FigureLook } from "./characters/Figure";
+import { poseWalk, stepLength } from "./characters/animation";
 import { Wood } from "./characters/materials";
 
 // BARMAID
 // The tavern waitress doing endless laps of the room with a tankard held
 // high: chestnut hair in a bun with a white ribbon, off-the-shoulder
 // chemise with puffed sleeves, laced leather corset, white apron over a
-// dark skirt, boots. She is also the walking trigger for "Angelic Frick" —
+// dark skirt, boots. She walks a real walk cycle — heel strike, knee bend,
+// hips rolling, free arm swinging — paced by the ground she covers so her
+// feet never slide. She is also the walking trigger for "Angelic Frick" —
 // click her to play it.
 
 const SONG_ID = "angelic-frick";
@@ -21,6 +24,8 @@ const SONG_ID = "angelic-frick";
 // the right. The spare instruments, the
 // keg and the barrels are placed to stay clear of it.
 const ROUND = { cx: -0.5, cz: 0.25, rx: 4.5, rz: 3.2, speed: 0.22 };
+const STRIDE = 0.3;
+const STEP = stepLength(STRIDE, 0.9);
 
 // Follows the painted reference board in /public/band/members/Barmaid Character Reference.png:
 // chestnut hair piled under a frilled white cap, off-the-shoulder chemise
@@ -42,7 +47,7 @@ const LOOK: FigureLook = {
     pouch: "#4a2e16",
     belt: false,
   },
-  legs: { skirt: "#4a4038", boots: "#4a301c" },
+  legs: { skirt: "#4a4038", hose: "#2a2420", boots: "#4a301c" },
   hair: { style: "bun", color: "#5a3418" },
   expression: "laugh",
   nose: "small",
@@ -78,9 +83,10 @@ function Tankard() {
 export default function Barmaid() {
   const walker = useRef<Group>(null);
   const body = useRef<Group>(null);
-  const rightArm = useRef<Group>(null);
-  const head = useRef<Group>(null);
+  const rig = useRig();
   const glowAnchor = useRef<Object3D>(null);
+  const phase = useRef(0);
+  const last = useRef<{ x: number; z: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const reducedMotion = useGameStore((s) => s.reducedMotion);
   const selectSong = useGameStore((s) => s.selectSong);
@@ -109,19 +115,23 @@ export default function Barmaid() {
     walker.current.position.set(x, 0, z);
     // face the direction of travel
     walker.current.rotation.y = Math.atan2(Math.cos(t) * ROUND.rx, -Math.sin(t) * ROUND.rz);
-    if (body.current && !reducedMotion) {
-      // brisk walk bob + hip sway
-      body.current.position.y = Math.abs(Math.sin(raw * 6)) * 0.045;
-      body.current.rotation.z = Math.sin(raw * 6) * 0.045;
+
+    // stride paced by distance covered, so the feet plant where they land
+    if (last.current) {
+      const d = Math.hypot(x - last.current.x, z - last.current.z);
+      phase.current += (d / STEP) * Math.PI;
     }
-    if (rightArm.current && !reducedMotion) {
-      // tankard held aloft, swaying with the stride
-      rightArm.current.rotation.z = -2.3 + Math.sin(raw * 3) * 0.1;
-      rightArm.current.rotation.x = -0.3 + Math.sin(raw * 6) * 0.05;
-    }
-    if (head.current && !reducedMotion) {
-      head.current.rotation.z = Math.sin(raw * 1.5) * 0.08;
-      head.current.rotation.y = Math.sin(raw * 0.9) * 0.2;
+    last.current = { x, z };
+    poseWalk(rig, phase.current, { stride: STRIDE, swing: 0.35, lean: 0.06, rightArm: false });
+
+    // the tankard arm stays aloft, swaying with the stride
+    const r = reducedMotion ? 0 : raw;
+    rig.rightArm.current?.rotation.set(-0.3 + Math.sin(phase.current) * 0.05, 0, -2.3 + Math.sin(phase.current * 0.5) * 0.08);
+    rig.rightForearm.current?.rotation.set(-0.6, 0, 0);
+    // and she looks about the room as she goes
+    if (rig.head.current) {
+      rig.head.current.rotation.y += Math.sin(r * 0.9) * 0.22;
+      rig.head.current.rotation.z += Math.sin(r * 1.5) * 0.06;
     }
     // hover bounce, same feel as the other clickable props
     if (body.current) {
@@ -158,8 +168,8 @@ export default function Barmaid() {
           pose="standing"
           highlight={glow}
           highlightColor={glowColor}
-          refs={{ rightArm, head }}
-          armPose={{ left: [0.15, 0, 0.95], leftElbow: -0.9, right: [-0.3, 0, -2.3], rightElbow: -0.6 }}
+          refs={rig}
+          armPose={{ left: [0.15, 0, -0.12], leftElbow: -0.5, right: [-0.3, 0, -2.3], rightElbow: -0.6 }}
           heldRight={<Tankard />}
         />
       </group>

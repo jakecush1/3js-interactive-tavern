@@ -53,7 +53,6 @@ export default function BandMember({ member, index }: Props) {
   const instrY = lanky ? 0.82 : 0.56;
   const instrZ = lanky ? 0.3 : 0.22;
   const tipY = metrics.top + 0.15;
-  const headRest = -metrics.hunch * 0.85;
 
   useFrame((state) => {
     if (!group.current) return;
@@ -90,7 +89,7 @@ export default function BandMember({ member, index }: Props) {
 
       // head bob
       if (head.current) {
-        head.current.rotation.x = headRest + Math.sin(beat + offset) * 0.08 * energy * motion;
+        head.current.rotation.x = Math.sin(beat + offset) * 0.08 * energy * motion;
       }
     } else {
       // idle: breathing
@@ -99,7 +98,7 @@ export default function BandMember({ member, index }: Props) {
       group.current.rotation.z = Math.sin(t * 0.6 + offset) * 0.01 * motion;
       if (leftArm.current) leftArm.current.rotation.x = -0.55 + Math.sin(t + offset) * 0.02;
       if (rightArm.current) rightArm.current.rotation.x = -0.55 + Math.cos(t + offset) * 0.02;
-      if (head.current) head.current.rotation.x = headRest + Math.sin(t * 0.8 + offset) * 0.03 * motion;
+      if (head.current) head.current.rotation.x = Math.sin(t * 0.8 + offset) * 0.03 * motion;
     }
   });
 
