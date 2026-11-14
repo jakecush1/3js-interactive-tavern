@@ -14,7 +14,11 @@ export default function App() {
   const started = useGameStore((s) => s.started);
   const setReducedMotion = useGameStore((s) => s.setReducedMotion);
   const setScrolledPast = useGameStore((s) => s.setScrolledPast);
-  const [loading, setLoading] = useState(true);
+  // The loading screen stays until the room has actually been drawn (the
+  // scene reports that itself), not for a fixed time.
+  const loaded = useGameStore((s) => s.loaded);
+  const [gaveUp, setGaveUp] = useState(false);
+  const loading = !loaded && !gaveUp;
   const scroller = useRef<HTMLDivElement>(null);
 
   // The root div (not the window) scrolls. Once the reader is down at the
@@ -42,9 +46,10 @@ export default function App() {
     return () => mq.removeEventListener("change", handler);
   }, [setReducedMotion]);
 
-  // Brief loading screen
+  // If the 3D scene never reports in (no WebGL, a lost context), don't
+  // strand the visitor on the loading screen.
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1600);
+    const timer = setTimeout(() => setGaveUp(true), 20000);
     return () => clearTimeout(timer);
   }, []);
 

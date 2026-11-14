@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Preload } from "@react-three/drei";
 import { clickableObjects } from "../data/clickableObjects";
 import { useGameStore } from "../lib/useGameStore";
 import TavernEnvironment from "./TavernEnvironment";
@@ -15,6 +14,7 @@ import LightingRig from "./LightingRig";
 import CameraRig from "./CameraRig";
 import Effects from "./Effects";
 import GlowLights from "./GlowLights";
+import SceneBatcher from "./SceneBatcher";
 
 export default function Scene() {
   const spawnBottles = useGameStore((s) => s.spawnBottles);
@@ -59,9 +59,9 @@ export default function Scene() {
 
       <BottleSpawner />
 
-      {/* Compile every shader once up front instead of stalling the first
-          time each material scrolls into view */}
-      <Preload all />
+      {/* Folds the room into a few dozen draw calls and holds the first
+          frame until shaders and textures are ready (keep this last) */}
+      <SceneBatcher />
     </>
   );
 }

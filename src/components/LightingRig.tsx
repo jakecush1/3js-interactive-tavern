@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Color, PMREMGenerator, type DirectionalLight, type AmbientLight } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -17,7 +17,9 @@ import { MOOD_LIGHT } from "../lib/constants";
 
 function EnvironmentMap() {
   const { gl, scene } = useThree();
-  useEffect(() => {
+  // Layout effect: the map has to be in place before the first shaders are
+  // compiled, or every material is compiled twice (once without it).
+  useLayoutEffect(() => {
     const pmrem = new PMREMGenerator(gl);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = env;
