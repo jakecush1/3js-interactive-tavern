@@ -15,7 +15,9 @@ import {
   type Color,
   type InterleavedBufferAttribute,
   type Material,
+  type Quaternion,
   type Scene,
+  type Vector3,
 } from "three";
 
 // SCENE BATCHER
@@ -44,12 +46,20 @@ import {
 //     against the real, animated objects.
 //
 // Nothing has to be declared. A node counts as moving once its transform
-// is seen to change; a material or geometry that is rewritten in place is
-// noticed and re-baked (or, if it keeps changing, left out and drawn the
-// old way); anything mounted, unmounted, shown or hidden is picked up
-// before the frame it first appears in. Whatever cannot be batched
-// faithfully (transparent surfaces, instanced meshes, sprites, mirrored
-// or sheared joints) is simply left alone and renders as before.
+// is seen to change, and anything mounted or unmounted is picked up, in
+// the very frame it happens. A material or geometry that is rewritten in
+// place, or something shown or hidden, is noticed and re-baked (or, if it
+// keeps changing, left out and drawn the old way): at once when it follows
+// a pointer event or a state change, which is how hover glows and song
+// changes arrive, and within a few frames otherwise. Whatever cannot be
+// batched faithfully (transparent surfaces, instanced meshes, sprites,
+// mirrored or sheared joints) is simply left alone and renders as before.
+//
+// While it is watching every transform anyway, it also spares three.js
+// from recomputing the matrices of nodes that have never moved (most of
+// the room): their automatic matrix update is switched off, and switched
+// back on, with the matrices brought up to date, in the same frame that
+// anything first moves them.
 //
 // To keep one mesh out of it: userData={{ noBatch: true }}.
 
@@ -57,6 +67,12 @@ import {
 export const HIDDEN_LAYER = 31;
 const HIDDEN_MASK = (1 << HIDDEN_LAYER) | 0;
 const DEFAULT_MASK = 1;
+/** Flags and materials are re-read a quarter of the scene per frame, unless something just happened. */
+const SLICES = 4;
+/** Frames of looking at everything after a pointer event or a state change. */
+const WATCH_FRAMES = 4;
+/** Only plain scene-graph nodes have their matrix updates switched off. */
+const FREEZABLE = new Set(["Group", "Mesh", "Object3D"]);
 
 type Rec = {
   obj: Object3D;
@@ -67,11 +83,10 @@ type Rec = {
   dynamic: boolean;
   /** A moving node whose world matrix a batch cannot carry (mirror, shear). */
   blocked: boolean;
-  px: number; py: number; pz: number;
-  qx: number; qy: number; qz: number; qw: number;
-  sx: number; sy: number; sz: number;
+  /** Its matrix update is switched off because it has never moved. */
+  frozen: boolean;
+  parent: Object3D | null;
   visible: boolean;
-  kids: number;
   mask: number;
   // meshes only
   isMesh: boolean;
@@ -382,6 +397,18 @@ export class SceneBatcher {
   private nextSlot = 1;
   private matrices = matrixTexture(256);
   private rels: Matrix4[] = [];
+  // The every-frame watch runs over flat arrays: the transform of each
+  // node that has never moved, and every node's child count.
+  private still: Rec[] = [];
+  private stillP: Vector3[] = [];
+  private stillQ: Quaternion[] = [];
+  private stillS: Vector3[] = [];
+  private snap = new Float64Array(0);
+  private kidLists: Object3D[][] = [];
+  private kidCounts = new Int32Array(0);
+  private cursor = 0;
+  private matCursor = 0;
+  private watch = WATCH_FRAMES;
   private stamp = 0;
   private frame = 0;
   private built = false;
@@ -403,6 +430,7 @@ export class SceneBatcher {
       if (o !== this.holder) this.rec(o);
     });
     this.list = [...this.recs.values()];
+    this.index();
     this.prevBeforeRender = this.scene.onBeforeRender;
     // inside render(): world matrices are fresh and every animation hook has run
     this.scene.onBeforeRender = (...args: Parameters<Scene["onBeforeRender"]>) => {
@@ -413,7 +441,13 @@ export class SceneBatcher {
 
   dispose() {
     if (this.prevBeforeRender) this.scene.onBeforeRender = this.prevBeforeRender;
-    for (const r of this.list) this.unpark(r);
+    for (const r of this.list) {
+      this.unpark(r);
+      if (r.frozen) {
+        r.frozen = false;
+        r.obj.matrixAutoUpdate = true;
+      }
+    }
     for (const f of this.families.values()) f.batch?.dispose();
     for (const m of this.familyMaterials.values()) m.dispose();
     this.matrices.dispose();
@@ -425,8 +459,14 @@ export class SceneBatcher {
     this.recs.clear();
     this.list = [];
     this.matList = [];
+    this.still = [];
+    this.stillP = [];
+    this.stillQ = [];
+    this.stillS = [];
+    this.kidLists = [];
     this.built = false;
     this.dirty = true;
+    this.watch = WATCH_FRAMES;
     this.scene.remove(this.holder);
   }
 
@@ -449,6 +489,7 @@ export class SceneBatcher {
     let parked = 0;
     let dynamic = 0;
     let live = 0;
+    let frozen = 0;
     for (const f of this.families.values()) {
       if (f.batch) batches++;
       groups += f.groups.size;
@@ -457,8 +498,19 @@ export class SceneBatcher {
       if (r.parked) parked++;
       if (r.dynamic) dynamic++;
       if (r.live) live++;
+      if (r.frozen) frozen++;
     }
-    return { nodes: this.list.length, batches, groups, parked, dynamic, live, pivots: this.slots.size, rebuilds: this.stamp };
+    return { nodes: this.list.length, batches, groups, parked, dynamic, frozen, live, pivots: this.slots.size, rebuilds: this.stamp };
+  }
+
+  /**
+   * Something may just have changed (a pointer event, a state change): look
+   * at every flag and material for the next few frames instead of a slice.
+   * Transforms and mounts are always watched in full; this only decides
+   * whether, say, a hover glow shows this frame or within the next three.
+   */
+  touch() {
+    this.watch = WATCH_FRAMES;
   }
 
   /** Bring the batches up to date with the scene. Cheap when nothing changed. */
@@ -478,20 +530,16 @@ export class SceneBatcher {
     if (r) return r;
     const m = o as Mesh;
     const isMesh = m.isMesh === true;
-    const p = o.position;
-    const q = o.quaternion;
-    const s = o.scale;
     r = {
       obj: o,
       stamp: 0,
       gen: this.built ? 1 : 0,
-      dynamic: false,
+      // a node whose matrix is managed by hand cannot be watched: assume it moves
+      dynamic: !o.matrixAutoUpdate,
       blocked: false,
-      px: p.x, py: p.y, pz: p.z,
-      qx: q.x, qy: q.y, qz: q.z, qw: q.w,
-      sx: s.x, sy: s.y, sz: s.z,
+      frozen: false,
+      parent: o.parent,
       visible: o.visible,
-      kids: o.children.length,
       mask: o.layers.mask,
       isMesh,
       geometry: isMesh ? m.geometry : null,
@@ -517,41 +565,138 @@ export class SceneBatcher {
     return info;
   }
 
+  // Flat arrays for the every-frame watch, rebuilt whenever the scene is walked.
+  private index() {
+    const list = this.list;
+    const n = list.length;
+    const still: Rec[] = [];
+    const P: Vector3[] = [];
+    const Q: Quaternion[] = [];
+    const S: Vector3[] = [];
+    const kids: Object3D[][] = new Array(n);
+    const counts = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = list[i];
+      const o = r.obj;
+      kids[i] = o.children;
+      counts[i] = o.children.length;
+      if (!r.dynamic) {
+        still.push(r);
+        P.push(o.position);
+        Q.push(o.quaternion);
+        S.push(o.scale);
+      }
+    }
+    const snap = new Float64Array(still.length * 10);
+    for (let i = 0, j = 0; i < still.length; i++, j += 10) {
+      const p = P[i];
+      const q = Q[i];
+      const s = S[i];
+      snap[j] = p.x; snap[j + 1] = p.y; snap[j + 2] = p.z;
+      snap[j + 3] = q.x; snap[j + 4] = q.y; snap[j + 5] = q.z; snap[j + 6] = q.w;
+      snap[j + 7] = s.x; snap[j + 8] = s.y; snap[j + 9] = s.z;
+    }
+    this.still = still;
+    this.stillP = P;
+    this.stillQ = Q;
+    this.stillS = S;
+    this.snap = snap;
+    this.kidLists = kids;
+    this.kidCounts = counts;
+    this.cursor = 0;
+    this.matCursor = 0;
+  }
+
+  // Bring a node that was assumed still back to life: three.js goes back
+  // to updating its matrix, and the matrices it skipped this frame (its
+  // own and everything beneath it) are brought up to date now.
+  private thaw(r: Rec) {
+    if (!r.frozen) return;
+    r.frozen = false;
+    const o = r.obj;
+    o.matrixAutoUpdate = true;
+    o.updateMatrix();
+    o.updateMatrixWorld(true);
+  }
+
   // What changed since the last frame? Only cheap comparisons here; the
   // work happens in rebuild() and only when something did.
   private poll() {
     let dirty = this.dirty;
-    const scene = this.scene;
-    const list = this.list;
-    for (let i = 0; i < list.length; i++) {
-      const r = list[i];
-      const o = r.obj;
-      if (o.parent === null && o !== scene) {
-        dirty = true;
-        continue;
-      }
-      if (!r.dynamic) {
-        const p = o.position;
-        const q = o.quaternion;
-        const s = o.scale;
-        if (
-          p.x !== r.px || p.y !== r.py || p.z !== r.pz ||
-          q.x !== r.qx || q.y !== r.qy || q.z !== r.qz || q.w !== r.qw ||
-          s.x !== r.sx || s.y !== r.sy || s.z !== r.sz
-        ) {
-          r.dynamic = o !== scene;
-          r.px = p.x; r.py = p.y; r.pz = p.z;
-          r.qx = q.x; r.qy = q.y; r.qz = q.z; r.qw = q.w;
-          r.sx = s.x; r.sy = s.y; r.sz = s.z;
+
+    // Every frame, exactly: has anything that was still moved, and has
+    // anything been mounted or unmounted? Missing either for even a frame
+    // would show (a part left behind, a ghost of something removed).
+    const P = this.stillP;
+    const Q = this.stillQ;
+    const S = this.stillS;
+    const snap = this.snap;
+    for (let i = 0, j = 0, n = P.length; i < n; i++, j += 10) {
+      const p = P[i];
+      const q = Q[i];
+      const s = S[i];
+      if (
+        p.x !== snap[j] || p.y !== snap[j + 1] || p.z !== snap[j + 2] ||
+        q.x !== snap[j + 3] || q.y !== snap[j + 4] || q.z !== snap[j + 5] || q.w !== snap[j + 6] ||
+        s.x !== snap[j + 7] || s.y !== snap[j + 8] || s.z !== snap[j + 9]
+      ) {
+        const r = this.still[i];
+        if (!r.dynamic) {
+          r.dynamic = true;
+          this.thaw(r);
           dirty = true;
         }
       }
-      if (o.visible !== r.visible) {
-        r.visible = o.visible;
+    }
+    if (!dirty) {
+      const kids = this.kidLists;
+      const counts = this.kidCounts;
+      for (let i = 0, n = kids.length; i < n; i++) {
+        if (kids[i].length !== counts[i]) {
+          dirty = true;
+          break;
+        }
+      }
+    }
+
+    // Flags and materials (a prop React rewrote, a visibility toggle): all
+    // of them when something is going on, otherwise a slice per frame, and
+    // the rest at once as soon as a slice finds anything, so one change is
+    // never applied piecemeal.
+    const list = this.list;
+    const mats = this.matList;
+    const all = dirty || this.watch > 0;
+    if (this.watch > 0) this.watch--;
+    if (all) {
+      if (this.flags(0, list.length)) dirty = true;
+      if (this.materials(0, mats.length)) dirty = true;
+    } else {
+      const step = Math.ceil(list.length / SLICES);
+      const from = this.cursor;
+      const to = Math.min(list.length, from + step);
+      this.cursor = to >= list.length ? 0 : to;
+      const mstep = Math.ceil(mats.length / SLICES);
+      const mfrom = this.matCursor;
+      const mto = Math.min(mats.length, mfrom + mstep);
+      this.matCursor = mto >= mats.length ? 0 : mto;
+      const hit = this.flags(from, to);
+      if (this.materials(mfrom, mto) || hit) {
+        this.flags(0, list.length);
+        this.materials(0, mats.length);
         dirty = true;
       }
-      if (o.children.length !== r.kids) {
-        r.kids = o.children.length;
+    }
+    this.dirty = dirty;
+  }
+
+  private flags(from: number, to: number): boolean {
+    let dirty = false;
+    const list = this.list;
+    for (let i = from; i < to; i++) {
+      const r = list[i];
+      const o = r.obj;
+      if (o.visible !== r.visible) {
+        r.visible = o.visible;
         dirty = true;
       }
       const mask = o.layers.mask;
@@ -580,8 +725,13 @@ export class SceneBatcher {
         }
       }
     }
+    return dirty;
+  }
+
+  private materials(from: number, to: number): boolean {
+    let dirty = false;
     const mats = this.matList;
-    for (let i = 0; i < mats.length; i++) {
+    for (let i = from; i < to; i++) {
       const info = mats[i];
       if (info.live) continue;
       const sum = checksum(info.material as AnyMaterial);
@@ -592,13 +742,13 @@ export class SceneBatcher {
         // not batched before and still not (a spark fading out): nothing to redo
         if (was === null && info.key === null) continue;
         // a prop change re-bakes; something animated every frame is left out
-        info.streak = this.frame - info.lastChange === 1 ? info.streak + 1 : 1;
+        info.streak = this.frame - info.lastChange <= SLICES ? info.streak + 1 : 1;
         info.lastChange = this.frame;
-        if (info.streak >= 3) info.live = true;
+        if (info.streak >= 6) info.live = true;
         dirty = true;
       }
     }
-    this.dirty = dirty;
+    return dirty;
   }
 
   private familyOf(r: Rec): Family | null {
@@ -648,15 +798,29 @@ export class SceneBatcher {
     if (o === this.holder) return;
     const r = this.rec(o);
     r.stamp = this.stamp;
-    r.kids = o.children.length;
     this.list.push(r);
+    if (r.parent !== o.parent) {
+      // moved under another parent: a frozen node would keep its old place
+      r.parent = o.parent;
+      if (r.frozen) o.updateMatrixWorld(true);
+    }
     const rel = this.rel(depth);
-    if (depth === 0) rel.identity();
-    else if (r.dynamic) {
+    if (depth === 0) {
+      // the root is never a pivot: batches live inside it and move with it
+      rel.identity();
+    } else if (r.dynamic) {
       pivot = o;
       blocked = r.blocked;
       rel.identity();
     } else rel.multiplyMatrices(this.rel(depth - 1), o.matrix);
+    // It has never moved: three.js need not recompute its matrix every
+    // frame (poll() is watching, and thaws it the moment it does move).
+    // That includes the root, whose update would otherwise force one on
+    // everything beneath it.
+    if (!r.dynamic && !r.frozen && o.matrixAutoUpdate && (depth === 0 || FREEZABLE.has(o.type))) {
+      o.matrixAutoUpdate = false;
+      r.frozen = true;
+    }
     visible = visible && o.visible;
 
     r.group = null;
@@ -709,6 +873,11 @@ export class SceneBatcher {
       for (const [o, r] of this.recs) {
         if (r.stamp !== this.stamp) {
           this.unpark(r);
+          if (r.frozen) {
+            // it may be mounted again somewhere else: hand it back as it came
+            r.frozen = false;
+            o.matrixAutoUpdate = true;
+          }
           this.recs.delete(o);
           const slot = this.slots.get(o);
           if (slot !== undefined) {
@@ -731,6 +900,7 @@ export class SceneBatcher {
         }
       } else this.unpark(r);
     }
+    this.index();
     this.built = true;
   }
 

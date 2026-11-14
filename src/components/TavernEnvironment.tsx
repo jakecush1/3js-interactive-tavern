@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
-import { useFrame, useLoader } from "@react-three/fiber";
-import { TextureLoader, SRGBColorSpace, CanvasTexture } from "three";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { SRGBColorSpace, CanvasTexture } from "three";
 import type { Group, Mesh, MeshBasicMaterial, PointLight, Sprite, SpriteMaterial } from "three";
 import { useGameStore } from "../lib/useGameStore";
 import { useIsMobile } from "../lib/useMedia";
 import { bannerTexture, plasterTexture, rugTexture, stoneTexture, windowTexture, woodTexture } from "../lib/textures";
+import { useImageTexture } from "../lib/sceneImages";
 import { Metal, Wood } from "./characters/materials";
 import { Bottle, Jug } from "./Bar";
 
@@ -34,14 +35,16 @@ function WallPainting({
   crop?: { repeat: [number, number]; offset: [number, number] };
   framed?: boolean;
 }) {
-  const tex = useLoader(TextureLoader, url);
-  useEffect(() => {
+  // empty until the picture has downloaded; the room is built meanwhile
+  // and only shown once every picture is in (see lib/sceneImages.ts)
+  const tex = useImageTexture(url);
+  useLayoutEffect(() => {
     tex.colorSpace = SRGBColorSpace;
     if (crop) {
       tex.repeat.set(crop.repeat[0], crop.repeat[1]);
       tex.offset.set(crop.offset[0], crop.offset[1]);
     }
-    tex.needsUpdate = true;
+    if (tex.image) tex.needsUpdate = true;
   }, [tex, crop]);
 
   return (

@@ -5,20 +5,24 @@ import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from "three";
 // the whole room read like construction paper. These generators paint
 // wood grain, stone, plaster, cloth weave, leather, rugs and banners onto
 // canvases at runtime (no image downloads), cached by key so each texture
-// is built once and shared by every mesh that uses it.
+// is built once and shared by every mesh that uses it. A texture is only
+// painted when its image is first needed (see make()).
 
 type Ctx = CanvasRenderingContext2D;
-type Rng = () => number;
+// The generator's state is on the function so the per-pixel grain loop can
+// run the same sequence inline and hand it back.
+type Rng = { (): number; s: number };
 
 function mulberry(seed: number): Rng {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
+  const next = (() => {
+    const a = (next.s = (next.s + 0x6d2b79f5) >>> 0);
     let t = a;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  }) as Rng;
+  next.s = seed >>> 0;
+  return next;
 }
 
 function hash(s: string) {
@@ -49,11 +53,34 @@ function rgba(hex: string, a: number, f = 1) {
 function grain(ctx: Ctx, w: number, h: number, rng: Rng, amount: number) {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const n = (rng() - 0.5) * 2 * amount;
-    d[i] = clamp(d[i] + n);
-    d[i + 1] = clamp(d[i + 1] + n);
-    d[i + 2] = clamp(d[i + 2] + n);
+  if (Number.isInteger(amount) && amount < 4096) {
+    // This loop touches every pixel of every texture (a few million in
+    // all), so it is written out flat: the generator inline, and the
+    // jitter rounded once instead of once per channel. With a whole-number
+    // amount, channel + jitter is exact in floating point, so
+    // round(channel + jitter) = channel + round(jitter) and the pixels are
+    // the same as the plain loop below, bit for bit. The array clamps to
+    // 0..255 on its own.
+    const k = 2 * amount;
+    let a = rng.s;
+    for (let i = 0; i < d.length; i += 4) {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      const n = Math.round((((t ^ (t >>> 14)) >>> 0) / 4294967296 - 0.5) * k) | 0;
+      d[i] = d[i] + n;
+      d[i + 1] = d[i + 1] + n;
+      d[i + 2] = d[i + 2] + n;
+    }
+    rng.s = a;
+  } else {
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (rng() - 0.5) * 2 * amount;
+      d[i] = clamp(d[i] + n);
+      d[i + 1] = clamp(d[i + 1] + n);
+      d[i + 2] = clamp(d[i + 2] + n);
+    }
   }
   ctx.putImageData(img, 0, 0);
 }
@@ -88,9 +115,32 @@ function make(
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
-  const ctx = c.getContext("2d");
   const tex = new CanvasTexture(c);
-  if (ctx) draw(ctx, w, h, mulberry(hash(key)));
+  // Painted the first time anything asks for the image, which in practice
+  // is when the renderer uploads it. Building the room then takes a
+  // fraction of the time (there are some fifty of these), and the painting
+  // happens while the shaders are compiling instead of before they start.
+  // The generator is seeded from the key, so when a texture is painted
+  // makes no difference to what is on it.
+  let painted = false;
+  const source = tex.source as { data: unknown };
+  Object.defineProperty(source, "data", {
+    configurable: true,
+    enumerable: true,
+    get() {
+      if (!painted) {
+        painted = true;
+        const ctx = c.getContext("2d");
+        if (ctx) draw(ctx, w, h, mulberry(hash(key)));
+      }
+      return c;
+    },
+    set(value: unknown) {
+      // someone swapped the image: an ordinary property again
+      painted = true;
+      Object.defineProperty(source, "data", { configurable: true, enumerable: true, writable: true, value });
+    },
+  });
   tex.wrapS = tex.wrapT = RepeatWrapping;
   tex.repeat.set(repeat[0], repeat[1]);
   if (srgb) tex.colorSpace = SRGBColorSpace;

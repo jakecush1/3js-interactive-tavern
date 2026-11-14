@@ -1,7 +1,10 @@
 // LOADING SCREEN
-// Shown briefly on first mount (dark gallery-wall style). Purely cosmetic
-// timing in this MVP since geometry is procedural; kept for when real assets
-// are added.
+// Dark gallery-wall style. The copy of this that visitors see first is
+// static HTML in index.html (#boot), so it is on screen before any script
+// has loaded; keep that markup in step with this. It stays until the room
+// is actually built, not for a fixed time. This component is the same
+// screen for the rarer moments React has to show it: when Enter was pressed
+// and the room is still not ready a beat later.
 
 export default function LoadingScreen() {
   return (

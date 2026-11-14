@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useGameStore } from "./lib/useGameStore";
 import { audioManager } from "./lib/audioManager";
 import Experience from "./components/Experience";
@@ -14,22 +14,62 @@ export default function App() {
   const started = useGameStore((s) => s.started);
   const setReducedMotion = useGameStore((s) => s.setReducedMotion);
   const setScrolledPast = useGameStore((s) => s.setScrolledPast);
-  // The loading screen stays until the room has actually been drawn (the
-  // scene reports that itself), not for a fixed time.
-  const loaded = useGameStore((s) => s.loaded);
+  const setSceneCovered = useGameStore((s) => s.setSceneCovered);
+  // The loading screen stays until the room is actually built (the scene
+  // reports that itself), not for a fixed time. Then the start screen
+  // shows while the last of the warm-up finishes behind it.
+  const built = useGameStore((s) => s.built);
+  const entered = useGameStore((s) => s.entered);
   const [gaveUp, setGaveUp] = useState(false);
-  const loading = !loaded && !gaveUp;
+  const loading = !built && !gaveUp;
+  // Enter was pressed before the first frame was ready. Usually that is a
+  // fraction of a second, and the start screen simply stays put; if it
+  // drags on, say so with the loading screen.
+  const waiting = entered && !started;
+  const [waitingLong, setWaitingLong] = useState(false);
+  // The loading screen visitors see first is plain HTML in index.html, up
+  // before this code has even been downloaded.
+  const [bootScreen] = useState(() => document.getElementById("boot"));
   const scroller = useRef<HTMLDivElement>(null);
+
+  // This component draws the gilded frame from here on.
+  useLayoutEffect(() => {
+    document.getElementById("boot-frame")?.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!loading) bootScreen?.remove();
+  }, [loading, bootScreen]);
+
+  useEffect(() => {
+    if (!waiting) {
+      setWaitingLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setWaitingLong(true), 400);
+    return () => clearTimeout(timer);
+  }, [waiting]);
+
+  // The room is not coming (it failed, or never reported in): Enter lets
+  // the visitor through anyway.
+  useEffect(() => {
+    if (gaveUp && waiting && !built) useGameStore.getState().start();
+  }, [gaveUp, waiting, built]);
 
   // The root div (not the window) scrolls. Once the reader is down at the
   // band/shows content, the fixed overlays tuck themselves out of the way.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const onScroll = () => setScrolledPast(el.scrollTop > el.clientHeight * 0.55);
+    const onScroll = () => {
+      setScrolledPast(el.scrollTop > el.clientHeight * 0.55);
+      // A full screen down, the opaque content has slid over the whole
+      // canvas; the scene stops being drawn until some of it shows again.
+      setSceneCovered(el.scrollTop >= el.clientHeight);
+    };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [setScrolledPast]);
+  }, [setScrolledPast, setSceneCovered]);
 
   // When a song plays out, carry on to the next one so the set loops.
   useEffect(() => {
@@ -46,12 +86,23 @@ export default function App() {
     return () => mq.removeEventListener("change", handler);
   }, [setReducedMotion]);
 
-  // If the 3D scene never reports in (no WebGL, a lost context), don't
-  // strand the visitor on the loading screen.
+  // If the 3D scene never reports in, don't strand the visitor on the
+  // loading screen: the music and everything below the fold work without
+  // it. A browser with no WebGL fails loudly and at once, so any error
+  // while the room is still being built lets them through immediately;
+  // the timer catches a room that fails quietly.
   useEffect(() => {
-    const timer = setTimeout(() => setGaveUp(true), 20000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (built) return;
+    const giveUp = () => setGaveUp(true);
+    const timer = setTimeout(giveUp, 20000);
+    window.addEventListener("error", giveUp);
+    window.addEventListener("unhandledrejection", giveUp);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("error", giveUp);
+      window.removeEventListener("unhandledrejection", giveUp);
+    };
+  }, [built]);
 
   // Keep audio volume in sync if changed externally
   useEffect(() => {
@@ -129,8 +180,8 @@ export default function App() {
       )}
 
       {/* Gates */}
-      {loading && <LoadingScreen />}
-      {!loading && !started && <StartScreen />}
+      {((loading && !bootScreen) || (waiting && waitingLong)) && <LoadingScreen />}
+      {!loading && !started && !(waiting && waitingLong) && <StartScreen />}
     </div>
   );
 }

@@ -3,8 +3,14 @@ import { songs } from "../data/songs";
 import { DEFAULT_VOLUME } from "./constants";
 
 type GameState = {
-  started: boolean;
+  /** The 3D room is mounted and warming up: the start screen can be shown. */
+  built: boolean;
+  /** The room has drawn its first frame: it can be revealed. */
   loaded: boolean;
+  /** The visitor has pressed Enter. */
+  entered: boolean;
+  /** Entered and loaded: the room is on show. */
+  started: boolean;
   muted: boolean;
   volume: number;
   isPlaying: boolean;
@@ -15,8 +21,12 @@ type GameState = {
   lastSpawnPoint: [number, number, number] | null;
   /** The page is scrolled down past the 3D scene to the band/shows content. */
   scrolledPast: boolean;
+  /** Scrolled so far that the content covers the 3D scene completely. */
+  sceneCovered: boolean;
 
   start: () => void;
+  enter: () => void;
+  setBuilt: (v: boolean) => void;
   setLoaded: (v: boolean) => void;
   toggleMute: () => void;
   setVolume: (v: number) => void;
@@ -27,11 +37,14 @@ type GameState = {
   spawnBottles: (point?: [number, number, number]) => void;
   setReducedMotion: (v: boolean) => void;
   setScrolledPast: (v: boolean) => void;
+  setSceneCovered: (v: boolean) => void;
 };
 
 export const useGameStore = create<GameState>((set, get) => ({
-  started: false,
+  built: false,
   loaded: false,
+  entered: false,
+  started: false,
   muted: false,
   volume: DEFAULT_VOLUME,
   isPlaying: false,
@@ -41,9 +54,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   bottleSpawnNonce: 0,
   lastSpawnPoint: null,
   scrolledPast: false,
+  sceneCovered: false,
 
-  start: () => set({ started: true }),
-  setLoaded: (v) => set({ loaded: v }),
+  start: () => set({ entered: true, started: true }),
+  // Enter reveals the room at once if it is ready, or as soon as it is.
+  enter: () => set((s) => ({ entered: true, started: s.loaded })),
+  setBuilt: (v) => set({ built: v }),
+  setLoaded: (v) => set((s) => ({ loaded: v, started: s.started || (v && s.entered) })),
   toggleMute: () => set((s) => ({ muted: !s.muted })),
   setVolume: (v) => set({ volume: v }),
   setPlaying: (v) => set({ isPlaying: v }),
@@ -62,6 +79,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     })),
   setReducedMotion: (v) => set({ reducedMotion: v }),
   setScrolledPast: (v) => set((s) => (s.scrolledPast === v ? s : { scrolledPast: v })),
+  setSceneCovered: (v) => set((s) => (s.sceneCovered === v ? s : { sceneCovered: v })),
 }));
 
 // Expose for dev tooling (harmless in production)

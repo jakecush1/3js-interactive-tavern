@@ -6,9 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="Side Proj — a playful interactive 3D medieval tavern band experience. Click glowing objects to play songs and summon beer bottles." />
     <title>Side Proj · An Interactive Tavern</title>
+    <!-- The two faces on the loading screen, fetched alongside the stylesheet
+         rather than after it has been parsed. -->
+    <link rel="preload" as="font" type="font/woff2" href="/src/assets/fonts/cinzel-latin.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/src/assets/fonts/ibm-plex-mono-400-latin.woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>
+    <!-- The loading screen, on screen from the first paint, before any script
+         has arrived. It is the same markup as
+         src/components/ui/LoadingScreen.tsx (keep the two in step), with the
+         gilded frame from App.tsx over it. App.tsx removes both once the
+         tavern is built. -->
+    <div id="boot" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-[#17110b]">
+      <h1 class="font-medieval gold-text text-3xl sm:text-4xl font-black mb-6">Side Proj</h1>
+      <div class="w-48 h-2.5 border-2 border-tavern-shadow bg-tavern-linen/10 shadow-brutal-cobalt overflow-hidden mb-5">
+        <div class="h-full bg-tavern-gold animate-[fadeIn_1.5s_ease] w-full origin-left"></div>
+      </div>
+      <p class="font-mono text-tavern-linen/60 text-xs tracking-wide animate-flicker">
+        Tuning lutes… polishing goblets… summoning bottles…
+      </p>
+    </div>
+    <div
+      id="boot-frame"
+      class="fixed inset-0 z-[70] pointer-events-none"
+      style="box-shadow: inset 0 0 0 4px #120d06, inset 0 0 0 5px #c68a2c, inset 0 0 0 7px #120d06, inset 0 0 60px rgba(0, 0, 0, 0.55)"
+    ></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

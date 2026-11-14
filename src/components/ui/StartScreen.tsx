@@ -1,17 +1,27 @@
+import { useEffect } from "react";
 import { useGameStore } from "../../lib/useGameStore";
 import { audioManager } from "../../lib/audioManager";
 
 // START SCREEN
 // Browsers require a user gesture before audio. This gate unlocks the audio
-// context, starts ambient sound, and reveals the experience.
+// context, starts ambient sound, and reveals the experience. It is shown as
+// soon as the room is built; if Enter is pressed in the moment before the
+// room has drawn its first frame, the reveal waits for that (see App.tsx).
 
 export default function StartScreen() {
-  const start = useGameStore((s) => s.start);
+  const enter = useGameStore((s) => s.enter);
+
+  // Get the audio engine ready while the visitor reads the screen, so the
+  // click on Enter is answered immediately.
+  useEffect(() => {
+    const timer = window.setTimeout(() => audioManager.warm(), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleEnter = () => {
     audioManager.init();
     audioManager.startAmbient();
-    start();
+    enter();
   };
 
   return (

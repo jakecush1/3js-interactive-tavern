@@ -1,23 +1,59 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { Material, Object3D, Texture } from "three";
+import type { Material, Object3D, Texture, WebGLRenderer } from "three";
 import { HIDDEN_LAYER, SceneBatcher as Batcher } from "../lib/sceneBatcher";
+import { imagesInPlace } from "../lib/sceneImages";
 import { useGameStore } from "../lib/useGameStore";
 
 // SCENE BATCHER (the component)
-// Mount once, last in the scene. It does three jobs:
+// Mount once, last in the scene. It does four jobs:
 //
 //   1. Runs lib/sceneBatcher.ts, which folds the room's ~1,600 meshes into
 //      a few dozen draw calls (see that file for how).
 //   2. Owns the render call, so the first frame is only drawn once it can
 //      be drawn without stalling: shaders are compiled in the background
-//      (the browser does that off the main thread) and textures are
-//      uploaded a few milliseconds at a time while the loading screen is
-//      up, instead of all at once in a multi-second freeze.
-//   3. Tells the store when the room is actually on screen, which is what
-//      the loading screen waits for.
+//      (the browser does that off the main thread) and, meanwhile, the
+//      textures are painted and uploaded a few milliseconds at a time and
+//      the paintings and faces finish downloading, instead of everything
+//      happening one after another in a multi-second freeze.
+//   3. Tells the store when the room is built (the loading screen gives
+//      way to the start screen) and when it has actually been drawn (Enter
+//      can reveal it).
+//   4. Stops drawing while nobody can see the room: behind the start
+//      screen, and when the page is scrolled down so far that the band and
+//      shows cover it. The animation keeps its place (every frame hook
+//      still runs), and a fresh frame is drawn the moment the room is
+//      uncovered.
 
-const UPLOAD_BUDGET_MS = 6;
+const UPLOAD_SLICE_MS = 8;
+// How long the first frame will wait for a painting or a face that is slow
+// to download. After this the room opens without it and the picture
+// appears when it lands.
+const IMAGE_PATIENCE_MS = 15000;
+
+// Milestones on the browser's performance timeline (DevTools shows them;
+// performance.getEntriesByType("mark") reads them back).
+const mark = (name: string) => performance.mark(`tavern:${name}`);
+
+// Paint and upload textures in short tasks, yielding to the browser between
+// them (a message-channel task rather than a frame, so the work is not
+// paced by the display).
+function uploadInSlices(gl: WebGLRenderer, textures: Texture[], alive: () => boolean, done: () => void) {
+  const channel = new MessageChannel();
+  const step = () => {
+    const t0 = performance.now();
+    while (alive() && textures.length > 0 && performance.now() - t0 < UPLOAD_SLICE_MS) {
+      gl.initTexture(textures.pop() as Texture);
+    }
+    if (alive() && textures.length > 0) channel.port2.postMessage(0);
+    else {
+      channel.port1.close();
+      done();
+    }
+  };
+  channel.port1.onmessage = step;
+  step();
+}
 
 // A stand-in that looks like the object but has no children, so the
 // renderer compiles this object's material and nothing parked beneath it.
@@ -31,7 +67,8 @@ function texturesOf(objects: Object3D[]) {
       const bag = mat as unknown as Record<string, unknown>;
       for (const k in bag) {
         const v = bag[k] as (Texture & { isRenderTargetTexture?: boolean }) | null;
-        if (v && typeof v === "object" && v.isTexture && v.image && !v.isRenderTargetTexture) out.add(v);
+        // (not looking at .image here: the procedural textures paint themselves when it is read)
+        if (v && typeof v === "object" && v.isTexture && !v.isRenderTargetTexture) out.add(v);
       }
     }
   }
@@ -41,22 +78,54 @@ function texturesOf(objects: Object3D[]) {
 export default function SceneBatcher() {
   const scene = useThree((s) => s.scene);
   const raycaster = useThree((s) => s.raycaster);
+  const canvas = useThree((s) => s.gl.domElement);
   const batcher = useMemo(() => new Batcher(scene), [scene]);
   // 0 waiting for the first animation tick, 1 warming up, 2 first frame, 3 running
   const phase = useRef(0);
-  const compiled = useRef(false);
-  const uploads = useRef<Texture[]>([]);
+  const mounted = useRef(false);
 
   useLayoutEffect(() => {
+    mounted.current = true;
     batcher.attach();
     // batched meshes sit on a layer the camera skips; pointer events must still find them
     raycaster.layers.enable(HIDDEN_LAYER);
     (window as unknown as { __batcher?: unknown }).__batcher = batcher;
     return () => {
+      mounted.current = false;
       batcher.dispose();
       raycaster.layers.disable(HIDDEN_LAYER);
     };
   }, [batcher, raycaster]);
+
+  // Hover glows and song changes start with a pointer event or a store
+  // update: tell the batcher to look at everything right away, so they
+  // show in the same frame they always did.
+  useEffect(() => {
+    const touch = () => batcher.touch();
+    const target = canvas.parentElement ?? canvas;
+    const events = ["pointermove", "pointerdown", "pointerup", "pointerout"] as const;
+    for (const e of events) target.addEventListener(e, touch, { passive: true });
+    const unsubscribe = useGameStore.subscribe(touch);
+    return () => {
+      for (const e of events) target.removeEventListener(e, touch);
+      unsubscribe();
+    };
+  }, [batcher, canvas]);
+
+  // The room is out of sight behind the start screen, or under the band and
+  // shows when the page is scrolled all the way past it.
+  const get = useThree((s) => s.get);
+  useEffect(() => {
+    const unseen = (s: ReturnType<typeof useGameStore.getState>) => !s.started || s.sceneCovered;
+    return useGameStore.subscribe((now, before) => {
+      // just uncovered: draw now rather than at the next frame, so what
+      // appears is the present moment and not the frame it stopped on
+      if (phase.current === 3 && unseen(before) && !unseen(now)) {
+        const three = get();
+        three.gl.render(three.scene, three.camera);
+      }
+    });
+  }, [get]);
 
   // Priority 1: runs after every other frame hook, and makes this the
   // place the scene is rendered from.
@@ -67,27 +136,46 @@ export default function SceneBatcher() {
       scene.updateMatrixWorld();
       batcher.sync();
       const drawn = batcher.renderables(camera);
-      uploads.current = texturesOf(drawn.children);
+      const textures = texturesOf(drawn.children);
       drawn.children = drawn.children.map(childless);
       phase.current = 1;
+      mark("scene-built");
+      // the heavy lifting on this thread is done: the start screen can go up
+      useGameStore.getState().setBuilt(true);
+      // Three things to wait for, side by side: the shaders, the painted
+      // textures, and the pictures still downloading.
+      let waiting = 3;
+      const done = (what: string) => {
+        mark(what);
+        if (--waiting > 0 || !mounted.current) return;
+        // The pictures that arrived meanwhile changed a few meshes (the
+        // heads were cut out and resized): bring the batches up to date
+        // and upload what is new, so the first frame has nothing left to do.
+        scene.updateMatrixWorld();
+        batcher.sync();
+        const late = texturesOf(batcher.renderables(camera).children);
+        uploadInSlices(gl, late, () => mounted.current, () => {
+          phase.current = 2;
+        });
+      };
       gl.compileAsync(drawn, camera, scene)
         .catch(() => {})
-        .then(() => {
-          compiled.current = true;
-        });
+        .then(() => done("shaders-ready"));
+      uploadInSlices(gl, textures, () => mounted.current, () => done("textures-ready"));
+      Promise.race([imagesInPlace(), new Promise((resolve) => setTimeout(resolve, IMAGE_PATIENCE_MS))]).then(() =>
+        done("images-ready")
+      );
       return;
     }
-    if (phase.current === 1) {
-      const t0 = performance.now();
-      while (uploads.current.length > 0 && performance.now() - t0 < UPLOAD_BUDGET_MS) {
-        gl.initTexture(uploads.current.pop() as Texture);
-      }
-      if (compiled.current && uploads.current.length === 0) phase.current = 2;
-      return;
+    if (phase.current === 1) return;
+    if (phase.current === 3) {
+      const s = useGameStore.getState();
+      if (!s.started || s.sceneCovered) return;
     }
     gl.render(scene, camera);
     if (phase.current === 2) {
       phase.current = 3;
+      mark("first-frame");
       useGameStore.getState().setLoaded(true);
     }
   }, 1);

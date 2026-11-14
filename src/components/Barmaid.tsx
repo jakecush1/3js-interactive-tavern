@@ -34,7 +34,7 @@ const STEP = stepLength(STRIDE, 0.9);
 const LOOK: FigureLook = {
   build: "slim",
   skin: "#efc6a4",
-  face: { url: "/band/Heads/barmaid-head.png", back: "#5a3418", height: 0.4, keyTolerance: 26 },
+  face: { url: "/band/Heads/barmaid-head.webp", back: "#5a3418", height: 0.4, keyTolerance: 26 },
   outfit: {
     kind: "dress",
     color: "#2b2a24",

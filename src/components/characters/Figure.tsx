@@ -1,6 +1,6 @@
 import { useMemo, useRef, type ReactNode, type RefObject } from "react";
-import { useLoader } from "@react-three/fiber";
-import { CanvasTexture, LatheGeometry, SRGBColorSpace, TextureLoader, Vector2, type Group } from "three";
+import { CanvasTexture, LatheGeometry, SRGBColorSpace, Texture, Vector2, type Group } from "three";
+import { useSceneImage } from "../../lib/sceneImages";
 import { Cloth, Hair, Leather, Metal, Skin, Wood } from "./materials";
 
 // FIGURE
@@ -204,6 +204,28 @@ const THIGH_SHAPE: [number, number][] = [[0, 0.98], [0.15, 1.0], [0.4, 0.95], [0
 const SHIN_SHAPE: [number, number][] = [[0, 0.7], [0.12, 0.78], [0.28, 0.8], [0.5, 0.68], [0.75, 0.52], [0.9, 0.44], [1, 0.42]];
 
 
+let blankCutout: { tex: Texture; aspect: number } | null = null;
+function blank() {
+  if (!blankCutout) {
+    // a transparent texel with the same settings as a real cutout, so the
+    // material compiles to the same shader either way
+    const tex = new CanvasTexture(document.createElement("canvas"));
+    tex.image.width = tex.image.height = 1;
+    tex.colorSpace = SRGBColorSpace;
+    tex.anisotropy = 8;
+    tex.premultiplyAlpha = false;
+    blankCutout = { tex, aspect: 1 };
+  }
+  return blankCutout;
+}
+
+// the photo as it is, for a browser that will not give us a 2D canvas
+function plain(img: HTMLImageElement) {
+  const tex = new Texture(img);
+  tex.needsUpdate = true;
+  return tex;
+}
+
 // Head cutouts ship on a flat backdrop (white photo mattes, the grey of a
 // character sheet, the dark field of a reference board) rather than real
 // transparency, so key the backdrop out: sample its colour from the image
@@ -211,17 +233,21 @@ const SHIN_SHAPE: [number, number][] = [[0, 0.7], [0.12, 0.78], [0.28, 0.8], [0.
 // and highlights inside the face are not connected to the border, so they
 // survive), feather the edge, then trim to the opaque bounds so every face
 // fills its panel the same way regardless of padding.
+//
+// The head image is not waited for: until it has downloaded this returns a
+// blank cutout, and the figure re-renders with the real one when it lands
+// (the room is not shown before then; see lib/sceneImages.ts).
 function useCutout(url: string, tolerance = 40) {
-  const src = useLoader(TextureLoader, url);
+  const img = useSceneImage(url);
   return useMemo(() => {
-    const img = src.image as HTMLImageElement;
+    if (!img) return blank();
     const w = img.width;
     const h = img.height;
     const scan = document.createElement("canvas");
     scan.width = w;
     scan.height = h;
     const sctx = scan.getContext("2d");
-    if (!sctx) return { tex: src, aspect: h / w };
+    if (!sctx) return { tex: plain(img), aspect: h / w };
     sctx.drawImage(img, 0, 0);
     const im = sctx.getImageData(0, 0, w, h);
     const d = im.data;
@@ -305,14 +331,14 @@ function useCutout(url: string, tolerance = 40) {
     out.width = cw;
     out.height = ch;
     const octx = out.getContext("2d");
-    if (!octx) return { tex: src, aspect: h / w };
+    if (!octx) return { tex: plain(img), aspect: h / w };
     octx.drawImage(scan, minX, minY, cw, ch, 0, 0, cw, ch);
     const tex = new CanvasTexture(out);
     tex.colorSpace = SRGBColorSpace;
     tex.anisotropy = 8;
     tex.premultiplyAlpha = false;
     return { tex, aspect: ch / cw };
-  }, [src, tolerance]);
+  }, [img, tolerance]);
 }
 
 function PhotoHead({ url, back, height = 0.44, headR, tolerance, longHair }: { url: string; back: string; height?: number; headR: number; tolerance?: number; longHair?: string }) {

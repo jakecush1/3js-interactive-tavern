@@ -5,8 +5,12 @@ import type { FigureLook } from "../components/characters/Figure";
 // each 3D figure here. `look` drives the procedural character kit in
 // src/components/characters/Figure.tsx and follows the painted character
 // sheets in /public/band/members. `look.face` is the member's painted head
-// cropped from that sheet (/public/band/Heads/*-head.png); the backdrop is
-// keyed out automatically and the head is wrapped onto the 3D skull.
+// cropped from that sheet (/public/band/Heads/*-head.webp, a lossless copy
+// of the *-head.png beside it: the same pixels in two thirds of the bytes;
+// after editing a PNG, remake it with
+// `cwebp -lossless -z 9 -exact x-head.png -o x-head.webp`, or point `url`
+// at the PNG, which works just as well). The backdrop is keyed out
+// automatically and the head is wrapped onto the 3D skull.
 // `photo` is the full painted scene render used by the UI portraits.
 
 export type Instrument = "lute" | "fiddle" | "drum" | "flute" | "piano" | "bass";
@@ -45,7 +49,7 @@ export const bandMembers: BandMember[] = [
     look: {
       build: "portly",
       skin: "#e8b592",
-      face: { url: "/band/Heads/jhole-head.png", back: "#6b3a1e", height: 0.38, keyTolerance: 26 },
+      face: { url: "/band/Heads/jhole-head.webp", back: "#6b3a1e", height: 0.38, keyTolerance: 26 },
       hair: { style: "long", color: "#6b3a1e" },
       outfit: {
         kind: "shirt",
@@ -79,7 +83,7 @@ export const bandMembers: BandMember[] = [
     look: {
       build: "lanky",
       skin: "#edc7a4",
-      face: { url: "/band/Heads/babe-head.png", back: "#b9924e", height: 0.5 },
+      face: { url: "/band/Heads/babe-head.webp", back: "#b9924e", height: 0.5 },
       outfit: {
         kind: "rags",
         color: "#4e5a30",
@@ -113,7 +117,7 @@ export const bandMembers: BandMember[] = [
       // He sits side-on to the room at the piano, so his head is turned on
       // the neck to look straight out at the audience (yaw cancels the
       // body rotation below).
-      face: { url: "/band/Heads/admiral-head.png", back: "#1a120c", height: 0.5, yaw: Math.PI / 2 - 0.2 },
+      face: { url: "/band/Heads/admiral-head.webp", back: "#1a120c", height: 0.5, yaw: Math.PI / 2 - 0.2 },
       outfit: {
         kind: "armor",
         color: "#1f2a4a",
@@ -146,7 +150,7 @@ export const bandMembers: BandMember[] = [
     look: {
       build: "stout",
       skin: "#e3b28c",
-      face: { url: "/band/Heads/freddie-head.png", back: "#17110b", height: 0.46 },
+      face: { url: "/band/Heads/freddie-head.webp", back: "#17110b", height: 0.46 },
       outfit: {
         kind: "shirt",
         sleeveColor: "#f0e8d8",
