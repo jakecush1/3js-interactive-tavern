@@ -55,6 +55,14 @@ import {
 // batched faithfully (transparent surfaces, instanced meshes, sprites,
 // mirrored or sheared joints) is simply left alone and renders as before.
 //
+// What ends up on screen depends only on the scene, never on how it got
+// there. Batches are drawn, and the pieces inside each batch are drawn, in
+// the order their first mesh appears in the scene graph. Left to itself
+// three.js orders by when each material object was created, and here that
+// would hinge on things like whether a face finished downloading before
+// or after the first frame; where two surfaces touch, the later one drawn
+// wins, so the same view could differ by a few pixels from load to load.
+//
 // While it is watching every transform anyway, it also spares three.js
 // from recomputing the matrices of nodes that have never moved (most of
 // the room): their automatic matrix update is switched off, and switched
@@ -130,6 +138,8 @@ type BatchGroup = {
   iCount: number;
   shown: boolean;
   stamp: number;
+  /** Position in the scene walk of its first mesh: where it sits in the draw list. */
+  first: number;
 };
 
 type Family = {
@@ -141,6 +151,9 @@ type Family = {
   batch: Batch | null;
   groups: Map<Object3D, BatchGroup>;
   wasted: number;
+  stamp: number;
+  /** Position in the scene walk of its first mesh: the order batches are drawn in. */
+  first: number;
 };
 
 // One draw call for every group that shares a material. To the renderer
@@ -782,7 +795,7 @@ export class SceneBatcher {
         fm = clone;
         this.familyMaterials.set(mk, fm);
       }
-      f = { key, gen: r.gen, material: fm, cast: o.castShadow, receive: o.receiveShadow, batch: null, groups: new Map(), wasted: 0 };
+      f = { key, gen: r.gen, material: fm, cast: o.castShadow, receive: o.receiveShadow, batch: null, groups: new Map(), wasted: 0, stamp: 0, first: 0 };
       this.families.set(key, f);
     }
     return f;
@@ -798,6 +811,7 @@ export class SceneBatcher {
     if (o === this.holder) return;
     const r = this.rec(o);
     r.stamp = this.stamp;
+    const at = this.list.length;
     this.list.push(r);
     if (r.parent !== o.parent) {
       // moved under another parent: a frozen node would keep its old place
@@ -829,11 +843,16 @@ export class SceneBatcher {
       if (f) {
         let g = f.groups.get(pivot);
         if (!g) {
-          g = { pivot, recs: [], h1: 0, h2: 0, bakedH1: 0, bakedH2: 0, vStart: 0, vCap: 0, iStart: 0, iCap: 0, iCount: 0, shown: false, stamp: 0 };
+          g = { pivot, recs: [], h1: 0, h2: 0, bakedH1: 0, bakedH2: 0, vStart: 0, vCap: 0, iStart: 0, iCap: 0, iCount: 0, shown: false, stamp: 0, first: 0 };
           f.groups.set(pivot, g);
+        }
+        if (f.stamp !== this.stamp) {
+          f.stamp = this.stamp;
+          f.first = at;
         }
         if (g.stamp !== this.stamp) {
           g.stamp = this.stamp;
+          g.first = at;
           g.recs.length = 0;
           g.h1 = 0x811c9dc5 | 0;
           g.h2 = 7;
@@ -889,6 +908,10 @@ export class SceneBatcher {
     }
 
     for (const f of [...this.families.values()]) this.updateFamily(f);
+
+    // draw the batches in scene order (see the note at the top of the file)
+    const drawn = [...this.families.values()].filter((f) => f.batch !== null).sort((a, b) => a.first - b.first);
+    for (let i = 0; i < drawn.length; i++) drawn[i].batch!.renderOrder = i + 1;
 
     // batched meshes step off the camera's layer; the rest step back on
     for (const r of this.list) {
@@ -1008,7 +1031,7 @@ export class SceneBatcher {
     }
 
     if (!full) {
-      if (draws) batch!.setDraws([...f.groups.values()], this.slotOf);
+      if (draws) batch!.setDraws(inSceneOrder(f.groups.values()), this.slotOf);
       return;
     }
 
@@ -1027,6 +1050,7 @@ export class SceneBatcher {
       indices += b.n;
       groups.push(g);
     }
+    groups.sort((a, b) => a.first - b.first);
     if (f.batch) {
       this.holder.remove(f.batch);
       f.batch.dispose();
@@ -1174,6 +1198,10 @@ export class SceneBatcher {
     if (changed) this.dirty = true;
     return changed;
   }
+}
+
+function inSceneOrder(groups: Iterable<BatchGroup>) {
+  return [...groups].sort((a, b) => a.first - b.first);
 }
 
 function isIdentity(m: Matrix4) {
