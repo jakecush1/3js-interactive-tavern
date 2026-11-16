@@ -38,14 +38,21 @@ function WallPainting({
   // empty until the picture has downloaded; the room is built meanwhile
   // and only shown once every picture is in (see lib/sceneImages.ts)
   const tex = useImageTexture(url);
+  // Keyed on the crop's numbers, not on the `crop` object: that is a new
+  // object each time the room re-renders, and running this again sends the
+  // whole picture to the graphics card again (a stall of tens of
+  // milliseconds, which used to land on the moment Enter is pressed).
+  const cropped = crop !== undefined;
+  const [repeatX, repeatY] = crop ? crop.repeat : [1, 1];
+  const [offsetX, offsetY] = crop ? crop.offset : [0, 0];
   useLayoutEffect(() => {
     tex.colorSpace = SRGBColorSpace;
-    if (crop) {
-      tex.repeat.set(crop.repeat[0], crop.repeat[1]);
-      tex.offset.set(crop.offset[0], crop.offset[1]);
+    if (cropped) {
+      tex.repeat.set(repeatX, repeatY);
+      tex.offset.set(offsetX, offsetY);
     }
     if (tex.image) tex.needsUpdate = true;
-  }, [tex, crop]);
+  }, [tex, cropped, repeatX, repeatY, offsetX, offsetY]);
 
   return (
     <group position={position} rotation={rotation}>

@@ -19,8 +19,12 @@ export default function StartScreen() {
   }, []);
 
   const handleEnter = () => {
-    audioManager.init();
-    audioManager.startAmbient();
+    // (this screen stays up for a moment if the room is not quite ready: a
+    // second press must not start the ambience a second time)
+    if (!useGameStore.getState().entered) {
+      audioManager.init();
+      audioManager.startAmbient();
+    }
     enter();
   };
 

@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, memo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import Scene from "./Scene";
@@ -18,7 +18,11 @@ function CanvasLoader() {
   );
 }
 
-export default function Experience() {
+// Memoised: it takes no props, so nothing the page around it does (the
+// start screen going away, a panel opening) should make React walk through
+// the whole room again. Each such walk cost several milliseconds and reset
+// a few renderer settings on the way.
+export default memo(function Experience() {
   // Phones: no shadow maps, native resolution, no full-screen colour filter.
   const mobile = useIsMobile();
   return (
@@ -40,4 +44,4 @@ export default function Experience() {
       </Suspense>
     </Canvas>
   );
-}
+});

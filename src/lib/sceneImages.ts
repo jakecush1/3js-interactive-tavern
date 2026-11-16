@@ -35,22 +35,29 @@ const whenIdle = new Set<() => void>();
 function request(url: string): Entry {
   let entry = entries.get(url);
   if (!entry) {
-    const image = new Image();
-    const made: Entry = { image, state: "loading", watchers: new Set() };
+    const made: Entry = { image: new Image(), state: "loading", watchers: new Set() };
     const settle = (state: Entry["state"]) => {
       made.state = state;
       if (state === "failed") console.warn(`[scene] Could not load ${url}; the room will open without it.`);
       for (const w of made.watchers) w();
     };
-    // as three.js's own loaders request images
-    image.crossOrigin = "anonymous";
-    image.src = url;
-    // decode() does the decoding off the main thread, instead of in the
-    // middle of the first upload to the GPU
-    image.decode().then(
-      () => settle("ready"),
-      () => settle("failed")
-    );
+    const load = (src: string, fallback: string | null) => {
+      const image = new Image();
+      made.image = image;
+      // as three.js's own loaders request images
+      image.crossOrigin = "anonymous";
+      image.src = src;
+      // decode() does the decoding off the main thread, instead of in the
+      // middle of the first upload to the GPU
+      image.decode().then(
+        () => settle("ready"),
+        () => (fallback ? load(fallback, null) : settle("failed"))
+      );
+    };
+    // The faces are WebP, each made (without loss) from a PNG of the same
+    // name that is still beside it. A browser too old to read WebP (Safari
+    // before macOS 11) gets the PNG.
+    load(url, url.endsWith(".webp") ? url.slice(0, -5) + ".png" : null);
     entries.set(url, made);
     entry = made;
   }

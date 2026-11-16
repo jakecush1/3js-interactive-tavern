@@ -41,7 +41,7 @@ src/
   lib/          # Zustand store, Howler audio manager, scene batcher, textures, tuning constants
   assets/fonts/ # The three typefaces, served from the site itself
 public/audio/   # MP3 files
-public/_headers # Cache rules for the hosted site
+vite.config.ts  # Build settings, and the cache rules for the hosted site
 ```
 
 ## Performance
@@ -49,11 +49,13 @@ public/_headers # Cache rules for the hosted site
 The room is built from about 1,600 small meshes, and it is the number of meshes, not the number of triangles, that costs frame time. A few things keep it quick; none of them needs attention when adding to the scene, but they are worth knowing about.
 
 - **Batching** — `src/lib/sceneBatcher.ts` draws meshes that share a kind of material and move together in a single draw call (about 180 calls per frame instead of about 1,700). It works out by itself what moves, what is hovered, what has been added or removed, so components are written as usual. The original meshes stay in the scene, hidden from the camera, and pointer events still hit them. To keep one mesh out of it: `userData={{ noBatch: true }}`. `window.__batcher.stats()` in the console shows what it is doing, and `node _perf.mjs` reports draw calls.
-- **Loading** — the loading screen is plain HTML in `index.html` (`#boot`), so it is on screen before any script arrives; `src/components/ui/LoadingScreen.tsx` is the same markup and the two should be kept in step. It gives way to the start screen as soon as the room is built. Shaders are compiled in the background, textures painted a few milliseconds at a time, and the paintings and faces downloaded, all at once rather than in turn; if Enter is pressed before the first frame is ready, the reveal waits for it. The steps show up as `tavern:*` marks in the browser's performance timeline.
-- **Images in the room** — load them with `useSceneImage` / `useImageTexture` from `src/lib/sceneImages.ts` rather than `useLoader`, which would make the whole room wait for the download before building anything.
+- **Loading** — the loading screen is plain HTML in `index.html` (`#boot`), so it is on screen before any script arrives; `src/components/ui/LoadingScreen.tsx` is the same markup and the two should be kept in step. It gives way to the start screen as soon as the room is built. Shaders are compiled in the background, textures painted a few milliseconds at a time, and the paintings and faces downloaded, all at once rather than in turn; if Enter is pressed before the first frame is ready, the reveal waits for it. Every one of those waits has a limit, so a failure anywhere lets the visitor in without the room rather than leaving them at the loading screen. The steps show up as `tavern:*` marks in the browser's performance timeline.
+- **Images in the room** — load them with `useSceneImage` / `useImageTexture` from `src/lib/sceneImages.ts` rather than `useLoader`, which would make the whole room wait for the download before building anything. A `.webp` picture needs the `.png` it was made from beside it under the same name: browsers too old to read WebP are given that instead.
 - **Not drawing what cannot be seen** — the scene is not rendered behind the start screen, or once the page is scrolled far enough that the band and shows cover it. Animation keeps its place.
+- **Re-rendering** — the canvas component (`Experience`) is memoised, so a change in the page around it (a panel opening, the start screen leaving) does not make React walk through the whole room again. Inside the room, an effect that sets a texture's `needsUpdate` must depend on plain values, not on an object or array prop: those are new on every render, and each run sends the whole picture to the graphics card again (two of the wall paintings used to do this each time Enter was pressed).
+- **Lights** — `src/lib/lightLoop.ts` stops three.js from shading each pixel with the small lights (candles, lanterns, the hover glows) whose light does not reach it; that was about a quarter of the graphics card's work per frame. It edits three.js's shader text before anything is compiled, and does nothing at all if a future three.js words that text differently.
 - **Fonts** — Cinzel, EB Garamond and IBM Plex Mono are in `src/assets/fonts` with their rules in `src/styles/fonts.css` (the same files and subsets Google Fonts serves).
-- **Caching** — `public/_headers` lets browsers keep the hashed files under `/assets` for good; songs and pictures are still checked for changes on each visit.
+- **Caching** — the build writes a `_headers` file for Cloudflare (see `vite.config.ts`) that lets browsers keep the hashed files under `/assets` for good; songs and pictures are still checked for changes on each visit. It names each file rather than saying `/assets/*`, because the site answers a missing address with the page itself and that answer must never be kept.
 
 ## Future Ideas
 

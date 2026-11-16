@@ -419,6 +419,8 @@ export class SceneBatcher {
   private snap = new Float64Array(0);
   private kidLists: Object3D[][] = [];
   private kidCounts = new Int32Array(0);
+  private nodes: Object3D[] = [];
+  private parents: (Object3D | null)[] = [];
   private cursor = 0;
   private matCursor = 0;
   private watch = WATCH_FRAMES;
@@ -477,6 +479,8 @@ export class SceneBatcher {
     this.stillQ = [];
     this.stillS = [];
     this.kidLists = [];
+    this.nodes = [];
+    this.parents = [];
     this.built = false;
     this.dirty = true;
     this.watch = WATCH_FRAMES;
@@ -588,11 +592,15 @@ export class SceneBatcher {
     const S: Vector3[] = [];
     const kids: Object3D[][] = new Array(n);
     const counts = new Int32Array(n);
+    const nodes: Object3D[] = new Array(n);
+    const parents: (Object3D | null)[] = new Array(n);
     for (let i = 0; i < n; i++) {
       const r = list[i];
       const o = r.obj;
       kids[i] = o.children;
       counts[i] = o.children.length;
+      nodes[i] = o;
+      parents[i] = o.parent;
       if (!r.dynamic) {
         still.push(r);
         P.push(o.position);
@@ -616,6 +624,8 @@ export class SceneBatcher {
     this.snap = snap;
     this.kidLists = kids;
     this.kidCounts = counts;
+    this.nodes = nodes;
+    this.parents = parents;
     this.cursor = 0;
     this.matCursor = 0;
   }
@@ -664,8 +674,13 @@ export class SceneBatcher {
     if (!dirty) {
       const kids = this.kidLists;
       const counts = this.kidCounts;
+      const nodes = this.nodes;
+      const parents = this.parents;
       for (let i = 0, n = kids.length; i < n; i++) {
-        if (kids[i].length !== counts[i]) {
+        // A child gained or lost, or the node itself taken out: when one
+        // thing replaces another in a single update the parent still has
+        // as many children as before, and only the one removed can tell.
+        if (kids[i].length !== counts[i] || nodes[i].parent !== parents[i]) {
           dirty = true;
           break;
         }
@@ -1073,8 +1088,10 @@ export class SceneBatcher {
       g.bakedH1 = g.h1;
       g.bakedH2 = g.h2;
     }
-    next.setDraws(groups, this.slotOf);
+    // (the family owns the batch before its draw list is made: handing out
+    // matrix slots may replace the shared texture, on every family's batch)
     f.batch = next;
+    next.setDraws(groups, this.slotOf);
     f.wasted = 0;
     this.holder.add(next);
   }

@@ -10,6 +10,32 @@ import BandMemberPanel from "./components/ui/BandMemberPanel";
 import InteractionHints from "./components/ui/InteractionHints";
 import FooterOverlay from "./components/ui/FooterOverlay";
 
+// How long the room may take before the visitor is let through without it.
+const ROOM_PATIENCE_MS = 20000;
+// The room stops being drawn once the content below has slid over all of
+// it, and a little further: this far past the top of the window, plus a few
+// frames' worth of travel when the page is being scrolled back up, so that
+// drawing has always resumed before any of the room comes back into view.
+const COVER_MARGIN_PX = 48;
+const COVER_LOOKAHEAD_FRAMES = 4;
+
+// Run fn once the page has been in view for `ms` at a stretch. The room is
+// built and drawn from animation frames, and a tab in the background gets
+// none, so time spent there says nothing about whether it is stuck.
+function afterInView(ms: number, fn: () => void) {
+  let timer = 0;
+  const arm = () => {
+    window.clearTimeout(timer);
+    if (document.visibilityState === "visible") timer = window.setTimeout(fn, ms);
+  };
+  document.addEventListener("visibilitychange", arm);
+  arm();
+  return () => {
+    window.clearTimeout(timer);
+    document.removeEventListener("visibilitychange", arm);
+  };
+}
+
 export default function App() {
   const started = useGameStore((s) => s.started);
   const setReducedMotion = useGameStore((s) => s.setReducedMotion);
@@ -19,8 +45,11 @@ export default function App() {
   // reports that itself), not for a fixed time. Then the start screen
   // shows while the last of the warm-up finishes behind it.
   const built = useGameStore((s) => s.built);
+  const loaded = useGameStore((s) => s.loaded);
   const entered = useGameStore((s) => s.entered);
   const [gaveUp, setGaveUp] = useState(false);
+  // Built, but its first frame has not come in a long while.
+  const [overdue, setOverdue] = useState(false);
   const loading = !built && !gaveUp;
   // Enter was pressed before the first frame was ready. Usually that is a
   // fraction of a second, and the start screen simply stays put; if it
@@ -31,6 +60,9 @@ export default function App() {
   // before this code has even been downloaded.
   const [bootScreen] = useState(() => document.getElementById("boot"));
   const scroller = useRef<HTMLDivElement>(null);
+  // The spacer that holds the content one screen down; where it ends, the
+  // opaque content begins.
+  const fold = useRef<HTMLDivElement>(null);
 
   // This component draws the gilded frame from here on.
   useLayoutEffect(() => {
@@ -50,25 +82,48 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [waiting]);
 
-  // The room is not coming (it failed, or never reported in): Enter lets
-  // the visitor through anyway.
+  // The room is not coming (it failed, or never reported in, or was built
+  // and then never drew): Enter lets the visitor through anyway.
   useEffect(() => {
-    if (gaveUp && waiting && !built) useGameStore.getState().start();
-  }, [gaveUp, waiting, built]);
+    if (waiting && (built ? overdue : gaveUp)) useGameStore.getState().start();
+  }, [waiting, built, overdue, gaveUp]);
 
   // The root div (not the window) scrolls. Once the reader is down at the
   // band/shows content, the fixed overlays tuck themselves out of the way.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const onScroll = () => {
+    let lastTop = el.scrollTop;
+    let settle = 0;
+    // `rising`: how far the content has just moved back down the window
+    const measure = (rising: number) => {
       setScrolledPast(el.scrollTop > el.clientHeight * 0.55);
-      // A full screen down, the opaque content has slid over the whole
-      // canvas; the scene stops being drawn until some of it shows again.
-      setSceneCovered(el.scrollTop >= el.clientHeight);
+      // Once the opaque content has slid over the whole canvas the scene
+      // stops being drawn, until some of it is about to show again. This
+      // is measured, not worked out from the scroll position: on a phone
+      // the screen of space above the content is taller than the window.
+      const edge = fold.current ? fold.current.getBoundingClientRect().bottom : Infinity;
+      setSceneCovered(edge <= -(COVER_MARGIN_PX + COVER_LOOKAHEAD_FRAMES * rising));
     };
+    const onScroll = () => {
+      const top = el.scrollTop;
+      const rising = Math.max(0, lastTop - top);
+      lastTop = top;
+      measure(rising);
+      // and once more when the scrolling has stopped
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => measure(0), 150);
+    };
+    // A window resized or a phone turned moves the content without a
+    // scroll event.
+    const resized = new ResizeObserver(() => measure(0));
+    resized.observe(el);
     el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    return () => {
+      window.clearTimeout(settle);
+      resized.disconnect();
+      el.removeEventListener("scroll", onScroll);
+    };
   }, [setScrolledPast, setSceneCovered]);
 
   // When a song plays out, carry on to the next one so the set loops.
@@ -94,15 +149,24 @@ export default function App() {
   useEffect(() => {
     if (built) return;
     const giveUp = () => setGaveUp(true);
-    const timer = setTimeout(giveUp, 20000);
+    const cancel = afterInView(ROOM_PATIENCE_MS, giveUp);
     window.addEventListener("error", giveUp);
     window.addEventListener("unhandledrejection", giveUp);
     return () => {
-      clearTimeout(timer);
+      cancel();
       window.removeEventListener("error", giveUp);
       window.removeEventListener("unhandledrejection", giveUp);
     };
   }, [built]);
+
+  // Likewise once it is built: the shaders, textures and pictures the
+  // first frame waits for each have their own limit, so this only catches
+  // a failure nothing else did. Without it, Enter would lead to a loading
+  // screen that never ends.
+  useEffect(() => {
+    if (!built || loaded) return;
+    return afterInView(ROOM_PATIENCE_MS, () => setOverdue(true));
+  }, [built, loaded]);
 
   // Keep audio volume in sync if changed externally
   useEffect(() => {
@@ -173,7 +237,7 @@ export default function App() {
               canvas stays click-through; FooterOverlay re-enables events on
               its own interactive content. */}
           <div className="relative pointer-events-none">
-            <div className="h-screen pointer-events-none" />
+            <div ref={fold} className="h-screen pointer-events-none" />
             <FooterOverlay />
           </div>
         </>

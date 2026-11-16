@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles/globals.css";
 import App from "./App";
+import "./lib/lightLoop";
 
 // The start screen and the panels use faces the loading screen does not.
 // Ask for them now, while the room is being built, so the text does not

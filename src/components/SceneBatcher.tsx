@@ -30,6 +30,11 @@ const UPLOAD_SLICE_MS = 8;
 // to download. After this the room opens without it and the picture
 // appears when it lands.
 const IMAGE_PATIENCE_MS = 15000;
+// And how long it will wait for the shaders. A graphics driver that never
+// reports them finished must not hold the room back for good: after this
+// they are compiled as they are first used, which is what happens anyway
+// in a browser that cannot compile in the background.
+const SHADER_PATIENCE_MS = 10000;
 
 // Milestones on the browser's performance timeline (DevTools shows them;
 // performance.getEntriesByType("mark") reads them back).
@@ -43,7 +48,13 @@ function uploadInSlices(gl: WebGLRenderer, textures: Texture[], alive: () => boo
   const step = () => {
     const t0 = performance.now();
     while (alive() && textures.length > 0 && performance.now() - t0 < UPLOAD_SLICE_MS) {
-      gl.initTexture(textures.pop() as Texture);
+      const texture = textures.pop() as Texture;
+      try {
+        gl.initTexture(texture);
+      } catch {
+        // one bad texture must not stop the rest: it is left for the frame
+        // that first draws it, as it would have been without this warm-up
+      }
     }
     if (alive() && textures.length > 0) channel.port2.postMessage(0);
     else {
@@ -53,6 +64,28 @@ function uploadInSlices(gl: WebGLRenderer, textures: Texture[], alive: () => boo
   };
   channel.port1.onmessage = step;
   step();
+}
+
+// Call done() once the programs these materials use have finished compiling
+// (the browser compiles them in the background and can be asked how far it
+// has got). three.js offers compileAsync() for this, but its wait never
+// ends if one of the materials is disposed meanwhile, which is what a
+// component unmounting during the warm-up does; a visitor who had pressed
+// Enter by then was left on the loading screen for good.
+function whenCompiled(gl: WebGLRenderer, materials: Set<Material>, alive: () => boolean, done: () => void) {
+  const context = gl.getContext();
+  const deadline = performance.now() + SHADER_PATIENCE_MS;
+  const check = () => {
+    if (!alive()) return;
+    for (const material of materials) {
+      const program = (gl.properties.get(material) as { currentProgram?: { isReady(): boolean } }).currentProgram;
+      // no program any more: the material was disposed, there is nothing to wait for
+      if (!program || program.isReady()) materials.delete(material);
+    }
+    if (materials.size === 0 || context.isContextLost() || performance.now() > deadline) done();
+    else setTimeout(check, 10);
+  };
+  check();
 }
 
 // A stand-in that looks like the object but has no children, so the
@@ -158,9 +191,14 @@ export default function SceneBatcher() {
           phase.current = 2;
         });
       };
-      gl.compileAsync(drawn, camera, scene)
-        .catch(() => {})
-        .then(() => done("shaders-ready"));
+      let compiling = new Set<Material>();
+      try {
+        compiling = gl.compile(drawn, camera, scene);
+      } catch (error) {
+        // the first frame will compile what it needs as it goes
+        console.warn("[scene] Could not compile the shaders ahead of the first frame.", error);
+      }
+      whenCompiled(gl, compiling, () => mounted.current, () => done("shaders-ready"));
       uploadInSlices(gl, textures, () => mounted.current, () => done("textures-ready"));
       Promise.race([imagesInPlace(), new Promise((resolve) => setTimeout(resolve, IMAGE_PATIENCE_MS))]).then(() =>
         done("images-ready")
